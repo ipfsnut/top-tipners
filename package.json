@@ -1,0 +1,42 @@
+{
+  "name": "top-tipners",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "biome check src",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@farcaster/frame-sdk": "^0.0.53",
+    "@farcaster/frame-wagmi-connector": "^0.0.42",
+    "@supabase/supabase-js": "^2.49.8",
+    "@tanstack/react-query": "^5.45.1",
+    "async": "^3.2.6",
+    "classnames": "^2.5.1",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.6.0",
+    "thirdweb": "^5.101.1",
+    "viem": "^2.30.5",
+    "wagmi": "^2.15.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.0",
+    "@netlify/functions": "^2.0.0",
+    "@types/node": "^22.15.21",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
