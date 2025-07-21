@@ -1,9 +1,9 @@
 # Netlify Configuration for TIPN Community Leaderboard
 
 [build]
-  # No build process needed for static HTML
-  publish = "."
-  command = ""
+  # Vite build process
+  publish = "dist"
+  command = "npm run build"
 
 # Redirect root to index.html for SPA behavior
 [[redirects]]
