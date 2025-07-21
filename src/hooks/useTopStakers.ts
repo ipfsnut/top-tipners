@@ -1,6 +1,6 @@
 // src/hooks/useTopStakers.ts
 import { useQuery } from '@tanstack/react-query'
-import { getContract, parseAbiItem } from 'viem'
+import { parseAbiItem } from 'viem'
 import { executeWithFallback } from '@/utils/rpcClient'
 import { supabase } from '@/lib/supabase'
 import { TIPN_CONFIG, TIPN_STAKING_ABI } from '@/config/blockchain'

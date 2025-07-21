@@ -1,5 +1,3 @@
-// src/App.tsx
-import React from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
 import Leaderboard from './components/Leaderboard'
 
