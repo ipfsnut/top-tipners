@@ -2,7 +2,7 @@ import React from 'react'
 import { ExternalLink } from 'lucide-react'
 import { formatTokenAmount, getBaseScanUrl } from '@/utils/format'
 import { getOptimizedPfpUrl } from '@/utils/farcaster'
-import type { StakerWithIdentity, LeaderboardRowProps } from '@/types'
+import type { LeaderboardRowProps } from '@/types'
 
 const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
   const getRankStyle = (rank: number): string => {

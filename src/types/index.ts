@@ -34,7 +34,7 @@ export interface PaginationProps {
 }
 
 export interface LeaderboardRowProps {
-  staker: StakerWithIdentity
+  staker: StakerWithIdentity  // <-- This is the key line
   rank: number
 }
 
