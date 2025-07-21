@@ -9,6 +9,7 @@ import Pagination from './Pagination'
 import LoadingSpinner from './LoadingSpinner'
 import ErrorState from './ErrorState'
 import Footer from './Footer'
+import CSVExport from './CSVExport'
 
 const ITEMS_PER_PAGE = 50
 
@@ -144,16 +145,18 @@ const Leaderboard: React.FC = () => {
           network="Base"
         />
 
-        {/* Manual Refresh Button */}
-        <div className="mb-4 md:mb-6 lg:mb-10 flex justify-center px-4">
+        {/* Action Buttons */}
+        <div className="mb-4 md:mb-6 lg:mb-10 flex flex-col sm:flex-row justify-center items-center gap-3 md:gap-4 px-4">
           <button
             onClick={handleManualRefresh}
             disabled={isManualRefreshing}
-            className="flex items-center gap-2 md:gap-3 px-4 md:px-6 lg:px-8 py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg md:rounded-xl lg:rounded-2xl transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 text-sm md:text-base lg:text-lg w-full max-w-xs md:w-auto"
+            className="flex items-center gap-2 md:gap-3 px-4 md:px-6 lg:px-8 py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg md:rounded-xl lg:rounded-2xl transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 text-sm md:text-base lg:text-lg w-full max-w-xs sm:w-auto"
           >
             <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 ${isManualRefreshing ? 'animate-spin' : ''}`} />
             <span className="truncate">{isManualRefreshing ? 'Refreshing...' : 'Refresh Data'}</span>
           </button>
+          
+          <CSVExport stakers={stakers} />
         </div>
 
         {/* Status Info */}
