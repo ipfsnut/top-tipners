@@ -47,7 +47,7 @@ export async function resolveENS(address: string): Promise<string | null> {
   }
 }
 
-// Check if address has a Base name (basename)
+// Check if address has a Base name (basename) - NOW ENABLED!
 export async function resolveBasename(address: string): Promise<string | null> {
   const cacheKey = `base_${address.toLowerCase()}`
   
@@ -59,19 +59,16 @@ export async function resolveBasename(address: string): Promise<string | null> {
   try {
     console.log(`🔍 Resolving Basename for ${address}`)
     
-    // TEMPORARY: Disable basename resolution due to Base network ENS configuration issues
-    // Base network doesn't have ensUniversalResolver configured in current Viem version
-    console.log(`⚠️ Basename resolution temporarily disabled - Base ENS not configured`)
-    ensCache.set(cacheKey, null)
-    return null
-
-    // TODO: Re-enable when Base ENS resolver is properly configured
-    // const baseName = await baseClient.getEnsName({
-    //   address: address as `0x${string}`,
-    // })
-    // console.log(`✅ Basename resolved: ${address} → ${baseName || 'none'}`)
-    // ensCache.set(cacheKey, baseName)
-    // return baseName
+    // Try to resolve basename using Base network
+    const baseName = await baseClient.getEnsName({
+      address: address as `0x${string}`,
+    })
+    
+    console.log(`✅ Basename resolved: ${address} → ${baseName || 'none'}`)
+    
+    // Cache the result (including null)
+    ensCache.set(cacheKey, baseName)
+    return baseName
   } catch (error) {
     console.warn(`❌ Basename lookup failed for ${address}:`, error)
     ensCache.set(cacheKey, null)
