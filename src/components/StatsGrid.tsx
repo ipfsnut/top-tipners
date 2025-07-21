@@ -9,7 +9,7 @@ const StatsGrid: React.FC<StatsGridProps> = ({ totalStakers, totalStaked, networ
         <div className="text-3xl font-bold text-tipn-primary mb-2">
           {totalStakers.toLocaleString()}
         </div>
-        <div className="text-gray-300">Total Stakers</div>
+        <div className="text-gray-300">Top Stakers</div>
       </div>
       <div className="card p-6 text-center">
         <div className="text-3xl font-bold text-tipn-primary mb-2">
