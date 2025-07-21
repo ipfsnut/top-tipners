@@ -1,11 +1,12 @@
 /// <reference types="vite/client" />
 
-declare interface ImportMetaEnv {
+interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string
   readonly VITE_SUPABASE_ANON_KEY: string
-  readonly VITE_THIRDWEB_CLIENT_ID: string
+  readonly VITE_NEYNAR_API_KEY: string
+  readonly VITE_APP_ENV: string
 }
 
-declare interface ImportMeta {
+interface ImportMeta {
   readonly env: ImportMetaEnv
 }

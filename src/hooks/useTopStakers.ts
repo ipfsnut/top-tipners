@@ -14,11 +14,18 @@ interface CachedStaker {
 // TIPN Contract Configuration
 const TIPN_STAKING_ADDRESS = '0x715e56a9a4678c21f23513de9d637968d495074a'
 
-// Environment variables
-const THIRDWEB_CLIENT_ID = import.meta.env.VITE_THIRDWEB_CLIENT_ID
+// Environment variables with fallbacks
+const NEYNAR_API_KEY = import.meta.env?.VITE_NEYNAR_API_KEY
 
-if (!THIRDWEB_CLIENT_ID) {
-  console.warn('VITE_THIRDWEB_CLIENT_ID not set - falling back to public RPC')
+// RPC Strategy: Neynar Primary → Base Public Fallback
+const getRpcUrl = () => {
+  if (NEYNAR_API_KEY) {
+    console.log('🟣 Using Neynar RPC (primary)')
+    return `https://base-mainnet.rpc.neynar.com/${NEYNAR_API_KEY}`
+  } else {
+    console.log('🔵 Using Base public RPC (fallback)')
+    return 'https://mainnet.base.org'
+  }
 }
 
 // TIPN Staking Contract ABI
@@ -42,14 +49,10 @@ const TIPN_STAKING_ABI = [
   {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
 ] as const
 
-// Create RPC client (Thirdweb if available, otherwise public)
-const rpcUrl = THIRDWEB_CLIENT_ID 
-  ? `https://${base.id}.rpc.thirdweb.com/${THIRDWEB_CLIENT_ID}`
-  : 'https://mainnet.base.org'
-
+// Create RPC client with Neynar primary, Base fallback
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(rpcUrl)
+  transport: http(getRpcUrl())
 })
 
 // Cache duration (1 hour)
@@ -139,7 +142,7 @@ async function cacheStakers(stakers: Staker[]): Promise<void> {
 // Fetch fresh data from blockchain
 async function fetchStakersFromBlockchain(): Promise<Staker[]> {
   console.log('🌐 Fetching fresh data from Base blockchain...')
-  console.log(`📡 Using RPC: ${rpcUrl}`)
+  console.log(`📡 Using RPC: ${getRpcUrl()}`)
   
   const transferEvents = await publicClient.getLogs({
     address: TIPN_STAKING_ADDRESS,
