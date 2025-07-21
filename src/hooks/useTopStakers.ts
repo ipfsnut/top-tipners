@@ -1,18 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { createPublicClient, http, getContract, parseAbiItem } from 'viem'
 import { base } from 'viem/chains'
-import { createClient } from '@supabase/supabase-js'
-
-// Types
-interface Staker {
-  address: string
-  amount: bigint
-  rank: number
-}
+import { supabase } from '@/lib/supabase'
+import type { Staker } from '@/types'
 
 interface CachedStaker {
   address: string
-  amount: string // Stored as string in Supabase
+  amount: string
   rank: number
   updated_at: string
 }
@@ -20,10 +14,12 @@ interface CachedStaker {
 // TIPN Contract Configuration
 const TIPN_STAKING_ADDRESS = '0x715e56a9a4678c21f23513de9d637968d495074a'
 
-// Environment variables (you'll need to set these)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'your-supabase-url'
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-supabase-anon-key'
-const THIRDWEB_CLIENT_ID = import.meta.env.VITE_THIRDWEB_CLIENT_ID || 'your-thirdweb-client-id'
+// Environment variables
+const THIRDWEB_CLIENT_ID = import.meta.env.VITE_THIRDWEB_CLIENT_ID
+
+if (!THIRDWEB_CLIENT_ID) {
+  console.warn('VITE_THIRDWEB_CLIENT_ID not set - falling back to public RPC')
+}
 
 // TIPN Staking Contract ABI
 const TIPN_STAKING_ABI = [
@@ -46,17 +42,18 @@ const TIPN_STAKING_ABI = [
   {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
 ] as const
 
-// Create Thirdweb RPC client for Base
+// Create RPC client (Thirdweb if available, otherwise public)
+const rpcUrl = THIRDWEB_CLIENT_ID 
+  ? `https://${base.id}.rpc.thirdweb.com/${THIRDWEB_CLIENT_ID}`
+  : 'https://mainnet.base.org'
+
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(`https://${base.id}.rpc.thirdweb.com/${THIRDWEB_CLIENT_ID}`)
+  transport: http(rpcUrl)
 })
 
-// Create Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-// Cache duration (15 minutes)
-const CACHE_DURATION_MS = 15 * 60 * 1000
+// Cache duration (1 hour)
+const CACHE_DURATION_MS = 60 * 60 * 1000
 
 // Check if cached data is still valid
 function isCacheValid(timestamp: string): boolean {
@@ -88,7 +85,7 @@ async function getCachedStakers(): Promise<Staker[] | null> {
 
     // Check if cache is still valid (using first record timestamp)
     if (!isCacheValid(data[0].updated_at)) {
-      console.log('⏰ Cache expired')
+      console.log('⏰ Cache expired (1 hour limit)')
       return null
     }
 
@@ -112,7 +109,7 @@ async function cacheStakers(stakers: Staker[]): Promise<void> {
   try {
     console.log('💾 Saving to Supabase cache...')
     
-    // Clear existing cache
+    // Clear existing cache first
     await supabase.from('tipn_stakers').delete().neq('address', '')
     
     // Convert BigInt to string for storage
@@ -123,7 +120,7 @@ async function cacheStakers(stakers: Staker[]): Promise<void> {
       updated_at: new Date().toISOString()
     }))
 
-    // Insert new data in batches (Supabase has limits)
+    // Insert new data in batches
     const batchSize = 100
     for (let i = 0; i < stakersToCache.length; i += batchSize) {
       const batch = stakersToCache.slice(i, i + batchSize)
@@ -139,9 +136,10 @@ async function cacheStakers(stakers: Staker[]): Promise<void> {
   }
 }
 
-// Fetch stakers from blockchain using Thirdweb RPC
+// Fetch fresh data from blockchain
 async function fetchStakersFromBlockchain(): Promise<Staker[]> {
-  console.log('🌐 Fetching from Base blockchain via Thirdweb RPC...')
+  console.log('🌐 Fetching fresh data from Base blockchain...')
+  console.log(`📡 Using RPC: ${rpcUrl}`)
   
   const transferEvents = await publicClient.getLogs({
     address: TIPN_STAKING_ADDRESS,
@@ -200,20 +198,20 @@ async function fetchStakersFromBlockchain(): Promise<Staker[]> {
   return validStakers
 }
 
-// Main fetch function with cache strategy
+// Main fetch function with cache-first strategy
 async function fetchTopStakers(): Promise<Staker[]> {
-  // First, try to get cached data
+  // Always try cache first
   const cachedStakers = await getCachedStakers()
   if (cachedStakers) {
-    console.log('🚀 Using cached data')
+    console.log('🚀 Using cached data (saves RPC calls)')
     return cachedStakers
   }
 
-  // If no valid cache, fetch from blockchain
-  console.log('🔗 Cache miss - fetching from blockchain...')
+  // Only hit blockchain if cache is empty/expired
+  console.log('🔗 Cache miss - fetching fresh data from blockchain...')
   const freshStakers = await fetchStakersFromBlockchain()
   
-  // Cache the fresh data (don't await - let it happen in background)
+  // Cache the fresh data in background
   cacheStakers(freshStakers).catch(error => {
     console.warn('Background cache save failed:', error)
   })
@@ -221,14 +219,27 @@ async function fetchTopStakers(): Promise<Staker[]> {
   return freshStakers
 }
 
-// Hook to fetch top TIPN stakers with Supabase caching
+// Hook with manual refresh capability
 export function useTopStakers() {
   return useQuery({
     queryKey: ['topStakers'],
     queryFn: fetchTopStakers,
-    staleTime: 5 * 60 * 1000, // 5 minutes (less than cache duration)
-    refetchInterval: 10 * 60 * 1000, // 10 minutes
+    staleTime: 60 * 60 * 1000, // 1 hour - same as cache duration
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
+    refetchOnWindowFocus: false, // Don't auto-refetch
+    refetchInterval: false, // No automatic refetching
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
+}
+
+// Manual refresh function that bypasses cache
+export async function forceRefreshStakers(): Promise<Staker[]> {
+  console.log('🔄 Manual refresh triggered - bypassing cache...')
+  const freshStakers = await fetchStakersFromBlockchain()
+  
+  // Update cache with fresh data
+  await cacheStakers(freshStakers)
+  
+  return freshStakers
 }

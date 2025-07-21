@@ -43,4 +43,4 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, index }) => {
   )
 }
 
-export default Leaderboard
+export default LeaderboardRow

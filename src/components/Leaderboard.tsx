@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react'
-import { useTopStakers } from '@/hooks/useTopStakers'
+import { RefreshCw } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useTopStakers, forceRefreshStakers } from '@/hooks/useTopStakers'
 import Header from './Header'
 import SearchBar from './SearchBar'
 import StatsGrid from './StatsGrid'
@@ -15,7 +17,9 @@ const ITEMS_PER_PAGE = 50
 const Leaderboard: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   
+  const queryClient = useQueryClient()
   const { data: stakers, isLoading, isError, error, refetch } = useTopStakers()
 
   const filteredStakers = useMemo(() => {
@@ -39,6 +43,24 @@ const Leaderboard: React.FC = () => {
   const handleSearchChange = (term: string) => {
     setSearchTerm(term)
     setCurrentPage(1) // Reset to first page when searching
+  }
+
+  const handleManualRefresh = async () => {
+    setIsManualRefreshing(true)
+    try {
+      console.log('🔄 Manual refresh initiated by user')
+      const freshData = await forceRefreshStakers()
+      
+      // Update the query cache with fresh data
+      queryClient.setQueryData(['topStakers'], freshData)
+      
+      console.log(`✅ Manual refresh complete - ${freshData.length} stakers updated`)
+    } catch (error) {
+      console.error('❌ Manual refresh failed:', error)
+      // Optionally show a toast notification here
+    } finally {
+      setIsManualRefreshing(false)
+    }
   }
 
   const totalStaked = useMemo(() => {
@@ -77,6 +99,26 @@ const Leaderboard: React.FC = () => {
         network="Base"
       />
 
+      {/* Manual Refresh Button */}
+      <div className="mb-6 flex justify-center">
+        <button
+          onClick={handleManualRefresh}
+          disabled={isManualRefreshing}
+          className="flex items-center gap-2 px-6 py-3 bg-tipn-primary hover:bg-tipn-secondary disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all duration-200 shadow-lg"
+        >
+          <RefreshCw 
+            className={`w-5 h-5 ${isManualRefreshing ? 'animate-spin' : ''}`} 
+          />
+          {isManualRefreshing ? 'Refreshing...' : 'Refresh Data'}
+        </button>
+      </div>
+
+      {/* Cache Info */}
+      <div className="mb-6 text-center text-sm text-gray-400">
+        Data is cached for 1 hour to minimize blockchain calls. 
+        Use the refresh button above to get the latest data.
+      </div>
+
       {/* Leaderboard Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
@@ -111,3 +153,5 @@ const Leaderboard: React.FC = () => {
     </div>
   )
 }
+
+export default Leaderboard
