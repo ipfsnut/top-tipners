@@ -1,40 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { ExternalLink } from 'lucide-react'
 import { formatTokenAmount, getBaseScanUrl } from '@/utils/format'
-import { resolveUserIdentity, getIdentityBadge, type UserIdentity } from '@/utils/identity'
+import { type DisplayIdentity } from '@/services/cachedIdentityService'
 import { getOptimizedPfpUrl } from '@/utils/farcaster'
 import type { LeaderboardRowProps } from '@/types'
 
-const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, index }) => {
-  const [identity, setIdentity] = useState<UserIdentity | null>(null)
-  const [isLoadingIdentity, setIsLoadingIdentity] = useState(false)
+interface CachedLeaderboardRowProps extends LeaderboardRowProps {
+  identity: DisplayIdentity | null
+}
 
-  // Load user identity on component mount
-  useEffect(() => {
-    let isCancelled = false
-    
-    const loadIdentity = async () => {
-      setIsLoadingIdentity(true)
-      try {
-        const userIdentity = await resolveUserIdentity(staker.address)
-        if (!isCancelled) {
-          setIdentity(userIdentity)
-        }
-      } catch (error) {
-        console.warn(`Failed to resolve identity for ${staker.address}:`, error)
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingIdentity(false)
-        }
-      }
-    }
-
-    loadIdentity()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [staker.address])
+const CachedLeaderboardRow: React.FC<CachedLeaderboardRowProps> = ({ staker, index, identity }) => {
+  const isLoadingIdentity = !identity
 
   const getRankStyle = (rank: number): string => {
     if (rank === 1) return 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black'
@@ -50,7 +26,34 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, index }) => {
     return <span className="text-lg">#{rank}</span>
   }
 
-  const badge = identity ? getIdentityBadge(identity) : null
+  const getIdentityBadge = () => {
+    if (!identity) return null
+    
+    switch (identity.identityType) {
+      case 'farcaster':
+        return {
+          icon: '🟣',
+          color: 'text-purple-400',
+          tooltip: `Farcaster: @${identity.farcaster?.username}`
+        }
+      case 'basename':
+        return {
+          icon: '🔵',
+          color: 'text-blue-400',
+          tooltip: `Basename: ${identity.basename}`
+        }
+      case 'ens':
+        return {
+          icon: '🟢',
+          color: 'text-green-400',
+          tooltip: `ENS: ${identity.ens}`
+        }
+      default:
+        return null
+    }
+  }
+
+  const badge = getIdentityBadge()
   const hasProfilePic = identity?.displayAvatar
 
   return (
@@ -157,4 +160,4 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, index }) => {
   )
 }
 
-export default LeaderboardRow
+export default CachedLeaderboardRow

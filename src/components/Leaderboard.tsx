@@ -132,10 +132,9 @@ const Leaderboard: React.FC = () => {
             <tbody className="divide-y divide-gray-700">
               {paginatedStakers.map((staker, index) => (
                 <LeaderboardRow 
-                  key={staker.address} 
-                  staker={staker} 
-                  index={startIndex + index} 
-                />
+                  key={staker.address}
+                  staker={staker}
+                  index={startIndex + index} identity={null}                />
               ))}
             </tbody>
           </table>
