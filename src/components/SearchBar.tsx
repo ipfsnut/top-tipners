@@ -181,7 +181,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
 
   const getSearchIcon = () => {
     if (isResolving) {
-      return <Search className="w-5 h-5 text-tipn-primary animate-spin" />
+      return <Search className="w-5 h-5 text-purple-400 animate-spin" />
     }
     if (searchHint?.type === 'farcaster') {
       return <MessageCircle className="w-5 h-5 text-purple-400" />
@@ -192,7 +192,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
     if (searchHint?.type === 'basename') {
       return <User className="w-5 h-5 text-blue-400" />
     }
-    return <Search className="w-5 h-5 text-gray-400" />
+    return <Search className="w-5 h-5 text-slate-400" />
   }
 
   const getHintIcon = () => {
@@ -204,11 +204,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
       case 'basename':
         return <User className="w-4 h-4 text-blue-400" />
       case 'address':
-        return <User className="w-4 h-4 text-gray-400" />
+        return <User className="w-4 h-4 text-slate-400" />
       case 'error':
         return <Search className="w-4 h-4 text-red-400" />
       default:
-        return <Search className="w-4 h-4 text-gray-400" />
+        return <Search className="w-4 h-4 text-slate-400" />
     }
   }
 
@@ -223,27 +223,27 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
       case 'error':
         return 'text-red-400'
       default:
-        return 'text-gray-300'
+        return 'text-slate-300'
     }
   }
 
   return (
-    <div className="mb-8">
-      <div className="relative max-w-md mx-auto">
+    <div className="mb-6 lg:mb-10">
+      <div className="relative max-w-lg mx-auto">
         <input
           type="text"
           placeholder="Search by @username, ENS, or address..."
           value={searchTerm}
           onChange={handleInputChange}
-          className="w-full px-4 py-3 pl-12 bg-gray-800 border border-gray-600 rounded-lg focus:border-tipn-primary focus:outline-none focus:ring-2 focus:ring-tipn-primary/20 transition-all duration-200"
+          className="w-full px-4 lg:px-6 py-3 lg:py-4 pl-12 lg:pl-14 bg-slate-800/70 backdrop-blur-sm border border-slate-600/50 rounded-xl lg:rounded-2xl focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 transition-all duration-200 text-base lg:text-lg text-white placeholder-slate-400"
         />
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+        <div className="absolute left-4 lg:left-5 top-1/2 transform -translate-y-1/2">
           {getSearchIcon()}
         </div>
         
         {/* Search hint */}
         {searchHint && (
-          <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-sm z-10 shadow-lg">
+          <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-sm z-10 shadow-lg">
             <div className="flex items-center gap-2">
               {/* Avatar for Farcaster users */}
               {searchHint.avatar && searchHint.type === 'farcaster' ? (
@@ -265,7 +265,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
               </span>
               
               {searchHint.resolvedAddress && (
-                <span className="text-xs text-gray-500 font-mono ml-auto">
+                <span className="text-xs text-slate-500 font-mono ml-auto">
                   {searchHint.resolvedAddress.slice(0, 6)}...{searchHint.resolvedAddress.slice(-4)}
                 </span>
               )}
@@ -275,7 +275,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
       </div>
       
       {/* Search tips */}
-      <div className="text-center mt-2 text-xs text-gray-500">
+      <div className="text-center mt-2 text-xs text-slate-500">
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <span className="flex items-center gap-1">
             <MessageCircle className="w-3 h-3 text-purple-400" />
@@ -289,7 +289,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
             <User className="w-3 h-3 text-blue-400" />
             alice.base.eth
           </span>
-          <span className="text-gray-600">or 0x1234...</span>
+          <span className="text-slate-600">or 0x1234...</span>
         </div>
       </div>
     </div>

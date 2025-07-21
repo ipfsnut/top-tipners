@@ -6,10 +6,10 @@ import type { LeaderboardRowProps } from '@/types'
 
 const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
   const getRankStyle = (rank: number): string => {
-    if (rank === 1) return 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black'
-    if (rank === 2) return 'bg-gradient-to-r from-gray-300 to-gray-500 text-black'
-    if (rank === 3) return 'bg-gradient-to-r from-amber-600 to-amber-800 text-white'
-    return 'bg-gray-800 hover:bg-gray-700 group transition-all duration-200'
+    if (rank === 1) return 'bg-gradient-to-r from-yellow-400/20 to-yellow-600/20 border border-yellow-400/30 text-white'
+    if (rank === 2) return 'bg-gradient-to-r from-gray-300/20 to-gray-500/20 border border-gray-400/30 text-white'
+    if (rank === 3) return 'bg-gradient-to-r from-amber-600/20 to-amber-800/20 border border-amber-400/30 text-white'
+    return 'bg-slate-800/30 hover:bg-slate-700/50 transition-all duration-200 border border-transparent'
   }
 
   const getRankDisplay = (rank: number): React.ReactNode => {
@@ -51,12 +51,12 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
   return (
     <tr className={getRankStyle(rank)}>
       {/* Rank Column */}
-      <td className="px-6 py-4 text-center font-bold">
+      <td className="px-4 lg:px-8 py-4 lg:py-6 text-center font-bold">
         {getRankDisplay(rank)}
       </td>
       
       {/* User Column */}
-      <td className="px-6 py-4">
+      <td className="px-4 lg:px-8 py-4 lg:py-6">
         <div className="flex items-center gap-3">
           {/* Profile Picture */}
           <div className="flex-shrink-0">
@@ -64,7 +64,7 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
               <img
                 src={getOptimizedPfpUrl(staker.farcasterPfpUrl, 40)}
                 alt={`${staker.displayName} avatar`}
-                className="w-10 h-10 rounded-full border-2 border-gray-600 object-cover"
+                className="w-10 h-10 rounded-full border-2 border-slate-600 object-cover"
                 onError={(e) => {
                   // Fallback to placeholder if image fails to load
                   const target = e.target as HTMLImageElement
@@ -76,8 +76,8 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
             ) : null}
             
             {/* Fallback placeholder */}
-            <div className={`w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center ${staker.farcasterPfpUrl ? 'hidden' : ''}`}>
-              <span className="text-sm font-semibold text-gray-300">
+            <div className={`w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center ${staker.farcasterPfpUrl ? 'hidden' : ''}`}>
+              <span className="text-sm font-semibold text-slate-300">
                 {staker.displayName[0]?.toUpperCase() || '?'}
               </span>
             </div>
@@ -103,7 +103,7 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
                     href={staker.profileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold hover:text-tipn-secondary transition-colors duration-200 truncate block"
+                    className="font-semibold hover:text-purple-400 transition-colors duration-200 truncate block"
                   >
                     {staker.displayName}
                   </a>
@@ -117,7 +117,7 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
 
             {/* Farcaster Bio (for top 10 ranks) */}
             {staker.farcasterBio && rank <= 10 && (
-              <div className="text-xs text-gray-400 mb-1 truncate">
+              <div className="text-xs text-slate-400 mb-1 truncate">
                 {staker.farcasterBio}
               </div>
             )}
@@ -128,7 +128,7 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
                 href={getBaseScanUrl(staker.address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 font-mono"
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1 font-mono"
                 title={`View on BaseScan: ${staker.address}`}
               >
                 {staker.address.slice(0, 6)}...{staker.address.slice(-4)}
@@ -156,15 +156,15 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
       </td>
 
       {/* Staked Amount Column */}
-      <td className="px-6 py-4 text-right">
+      <td className="px-4 lg:px-8 py-4 lg:py-6 text-right">
         <div className="flex flex-col items-end">
-          <span className="font-bold text-tipn-primary text-lg">
+          <span className="font-bold text-purple-400 text-lg">
             {formatTokenAmount(staker.amount)} TIPN
           </span>
           
           {/* Additional context for Farcaster users */}
           {staker.farcasterUsername && (
-            <div className="text-xs text-gray-400 space-y-1">
+            <div className="text-xs text-slate-400 space-y-1">
               {staker.farcasterFollowerCount && staker.farcasterFollowerCount > 0 && (
                 <div>
                   {staker.farcasterFollowerCount.toLocaleString()} followers
@@ -175,7 +175,7 @@ const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ staker, rank }) => {
           
           {/* Verified identity indicator */}
           {staker.hasVerifiedIdentity && (
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-slate-500">
               Verified {staker.identityType}
             </div>
           )}

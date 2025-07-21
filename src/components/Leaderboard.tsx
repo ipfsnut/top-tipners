@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTopStakers, forceRefreshStakers } from '@/hooks/useTopStakers'
-import Header from './Header'
 import SearchBar from './SearchBar'
 import StatsGrid from './StatsGrid'
 import LeaderboardRow from './LeaderboardRow'
@@ -60,7 +59,6 @@ const Leaderboard: React.FC = () => {
       console.log(`✅ Manual refresh complete - ${freshData.length} stakers updated`)
     } catch (error) {
       console.error('❌ Manual refresh failed:', error)
-      // You could add a toast notification here
     } finally {
       setIsManualRefreshing(false)
     }
@@ -87,89 +85,124 @@ const Leaderboard: React.FC = () => {
 
   if (!stakers || stakers.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <Header />
-        <div className="text-center">
-          <p className="text-xl text-gray-300">No stakers found</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 text-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-12 max-w-7xl">
+          {/* Header */}
+          <div className="text-center mb-8 lg:mb-16">
+            <div className="mb-6 lg:mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 lg:w-24 lg:h-24 bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl lg:rounded-3xl mb-4 lg:mb-6 shadow-2xl">
+                <span className="text-2xl lg:text-4xl font-bold text-white">T</span>
+              </div>
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent mb-3 lg:mb-6 leading-tight">
+              Top Tipners
+            </h1>
+            <p className="text-lg lg:text-xl text-slate-300 mb-4 lg:mb-6 leading-relaxed max-w-2xl mx-auto">
+              Community Leaderboard - Top 1000 $TIPN Stakers on Base
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl text-slate-300">No stakers found</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <Header />
-      
-      <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
-      
-      <StatsGrid 
-        totalStakers={stakers.length}
-        totalStaked={totalStaked}
-        network="Base"
-      />
-
-      {/* Manual Refresh Button */}
-      <div className="mb-6 flex justify-center">
-        <button
-          onClick={handleManualRefresh}
-          disabled={isManualRefreshing}
-          className="flex items-center gap-2 px-6 py-3 bg-tipn-primary hover:bg-tipn-secondary disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all duration-200 shadow-lg"
-        >
-          <RefreshCw 
-            className={`w-5 h-5 ${isManualRefreshing ? 'animate-spin' : ''}`} 
-          />
-          {isManualRefreshing ? 'Refreshing...' : 'Refresh Data'}
-        </button>
-      </div>
-
-      {/* Status Info */}
-      <div className="mb-6 text-center text-sm text-gray-400 space-y-1">
-        <div>
-          Staking data cached for 1 hour. Identity data includes Farcaster, ENS, and Basename resolution.
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 text-white">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-12 max-w-7xl">
+        {/* Header */}
+        <div className="text-center mb-8 lg:mb-16">
+          <div className="mb-6 lg:mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 lg:w-24 lg:h-24 bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl lg:rounded-3xl mb-4 lg:mb-6 shadow-2xl">
+              <span className="text-2xl lg:text-4xl font-bold text-white">T</span>
+            </div>
+          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent mb-3 lg:mb-6 leading-tight">
+            Top Tipners
+          </h1>
+          <p className="text-lg lg:text-xl text-slate-300 mb-4 lg:mb-6 leading-relaxed max-w-2xl mx-auto">
+            Community Leaderboard - Top 1000 $TIPN Stakers on Base
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 lg:gap-6 text-sm lg:text-base">
+            <div className="flex items-center gap-2 lg:gap-3 bg-slate-800/50 backdrop-blur-sm rounded-full px-4 py-2 border border-slate-600/50">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              <span className="text-green-300 font-medium">Live Data</span>
+            </div>
+            <div className="text-blue-200 bg-blue-900/30 border border-blue-400/30 rounded-full px-4 py-2 backdrop-blur-sm">
+              Community Project - Not Official TIPNEARN Team
+            </div>
+          </div>
         </div>
-        <div>
-          <span className="text-tipn-primary font-semibold">{verifiedCount}</span> of {stakers.length} stakers have verified identities
-          <span className="text-gray-500 ml-1">
-            (auto-enriching every 2 hours)
-          </span>
+
+        <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
+        
+        <StatsGrid 
+          totalStakers={stakers.length}
+          totalStaked={totalStaked}
+          network="Base"
+        />
+
+        {/* Manual Refresh Button */}
+        <div className="mb-6 lg:mb-10 flex justify-center">
+          <button
+            onClick={handleManualRefresh}
+            disabled={isManualRefreshing}
+            className="flex items-center gap-3 px-6 lg:px-8 py-3 lg:py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl lg:rounded-2xl transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 text-base lg:text-lg"
+          >
+            <RefreshCw className={`w-5 h-5 lg:w-6 lg:h-6 ${isManualRefreshing ? 'animate-spin' : ''}`} />
+            {isManualRefreshing ? 'Refreshing...' : 'Refresh Data'}
+          </button>
         </div>
-      </div>
 
-      {/* Leaderboard Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-700 border-b border-gray-600">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold">Rank</th>
-                <th className="px-6 py-4 text-left font-semibold">User</th>
-                <th className="px-6 py-4 text-right font-semibold">Staked Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {paginatedStakers.map((staker, index) => {
-                const actualRank = startIndex + index + 1
-                
-                return (
-                  <LeaderboardRow 
-                    key={staker.address}
-                    staker={staker}
-                    rank={actualRank}
-                  />
-                )
-              })}
-            </tbody>
-          </table>
+        {/* Status Info */}
+        <div className="mb-6 text-center text-sm lg:text-base text-slate-400 space-y-2">
+          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-slate-700/50">
+            Staking data cached for 1 hour. Identity data includes Farcaster, ENS, and Basename resolution.
+          </div>
+          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-slate-700/50">
+            <span className="text-purple-300 font-semibold">{verifiedCount}</span> of {stakers.length} stakers have verified identities
+            <span className="text-slate-500 ml-2">(auto-enriching every 2 hours)</span>
+          </div>
         </div>
+
+        {/* Leaderboard Table */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl lg:rounded-3xl shadow-2xl overflow-hidden border border-slate-700/50">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-700/70 backdrop-blur-sm border-b border-slate-600/50">
+                <tr>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6 text-left font-semibold text-slate-200 text-base lg:text-lg">Rank</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6 text-left font-semibold text-slate-200 text-base lg:text-lg">User</th>
+                  <th className="px-4 lg:px-8 py-4 lg:py-6 text-right font-semibold text-slate-200 text-base lg:text-lg">Staked Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {paginatedStakers.map((staker, index) => {
+                  const actualRank = startIndex + index + 1
+                  
+                  return (
+                    <LeaderboardRow 
+                      key={staker.address}
+                      staker={staker}
+                      rank={actualRank}
+                    />
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+
+        <Footer />
       </div>
-
-      <Pagination 
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
-
-      <Footer />
     </div>
   )
 }

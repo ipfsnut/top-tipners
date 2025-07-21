@@ -28,7 +28,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="flex items-center gap-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors duration-200"
+          className="flex items-center gap-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors duration-200"
         >
           <ChevronLeft className="w-4 h-4" />
           Previous
@@ -40,8 +40,8 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
             onClick={() => onPageChange(pageNum)}
             className={`px-4 py-2 rounded-lg border transition-colors duration-200 ${
               currentPage === pageNum
-                ? 'bg-tipn-primary text-white border-tipn-primary'
-                : 'bg-gray-800 border-gray-600 hover:bg-gray-700'
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-slate-800 border-slate-600 hover:bg-slate-700'
             }`}
           >
             {pageNum}
@@ -51,7 +51,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="flex items-center gap-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors duration-200"
+          className="flex items-center gap-1 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors duration-200"
         >
           Next
           <ChevronRight className="w-4 h-4" />
