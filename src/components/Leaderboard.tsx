@@ -10,7 +10,6 @@ import Pagination from './Pagination'
 import LoadingSpinner from './LoadingSpinner'
 import ErrorState from './ErrorState'
 import Footer from './Footer'
-import type { Staker } from '@/types'
 
 const ITEMS_PER_PAGE = 50
 
