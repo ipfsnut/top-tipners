@@ -1,104 +1,30 @@
 // src/hooks/useTopStakers.ts
 import { useQuery } from '@tanstack/react-query'
-import { parseAbiItem } from 'viem'
-import { executeWithFallback } from '@/utils/rpcClient'
 import { supabase } from '@/lib/supabase'
-import { TIPN_CONFIG, TIPN_STAKING_ABI } from '@/config/blockchain'
+import { fetchTopTipnHolders } from '@/services/ankrTokenService'
 import type { Staker } from '@/types'
 
-// Fetch fresh data from blockchain using the existing config
-async function fetchFromBlockchain(): Promise<Staker[]> {
-  console.log('🌐 Fetching fresh data from Base blockchain...')
+// Cache key for last refresh time
+const REFRESH_CACHE_KEY = 'tipn_last_refresh'
+const REFRESH_COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+
+// Check if refresh is allowed (30-minute cooldown)
+function canRefresh(): boolean {
+  const lastRefresh = localStorage.getItem(REFRESH_CACHE_KEY)
+  if (!lastRefresh) return true
   
-  try {
-    // Get Transfer events to find all stakers
-    const transferEvents = await executeWithFallback(async (client) => {
-      return await client.getLogs({
-        address: TIPN_CONFIG.stakingAddress,
-        event: parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)'),
-        fromBlock: 'earliest',
-        toBlock: 'latest'
-      })
-    })
+  const timeSinceRefresh = Date.now() - parseInt(lastRefresh)
+  return timeSinceRefresh >= REFRESH_COOLDOWN_MS
+}
 
-    console.log(`📄 Found ${transferEvents.length} transfer events`)
-
-    // Extract unique staker addresses
-    const uniqueStakers = new Set<string>()
-    transferEvents.forEach(event => {
-      if (event.args?.to && event.args.to !== '0x0000000000000000000000000000000000000000') {
-        uniqueStakers.add(event.args.to.toLowerCase())
-      }
-    })
-
-    console.log(`👥 Found ${uniqueStakers.size} unique staker addresses`)
-
-    if (uniqueStakers.size === 0) {
-      return []
-    }
-
-    // Get current balances using multicall for efficiency
-    const stakersArray = Array.from(uniqueStakers)
-    const batchSize = 100 // Reasonable batch size
-
-    const stakersWithBalances: { address: string; amount: bigint }[] = []
-
-    for (let i = 0; i < stakersArray.length; i += batchSize) {
-      const batch = stakersArray.slice(i, i + batchSize)
-      
-      try {
-        const balanceResults = await executeWithFallback(async (client) => {
-          return await client.multicall({
-            contracts: batch.map(address => ({
-              address: TIPN_CONFIG.stakingAddress,
-              abi: TIPN_STAKING_ABI,
-              functionName: 'balanceOf',
-              args: [address as `0x${string}`]
-            }))
-          })
-        })
-
-        // Process results
-        balanceResults.forEach((result, index) => {
-          if (result.status === 'success') {
-            const balance = result.result as bigint
-            if (balance > 0n) {
-              stakersWithBalances.push({
-                address: batch[index],
-                amount: balance
-              })
-            }
-          }
-        })
-
-        console.log(`Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(stakersArray.length / batchSize)}`)
-        
-        // Small delay between batches
-        await new Promise(resolve => setTimeout(resolve, 100))
-      } catch (error) {
-        console.error(`Batch failed for addresses ${i}-${i + batchSize}:`, error)
-        // Continue with next batch rather than failing completely
-      }
-    }
-
-    // Sort and rank
-    const validStakers = stakersWithBalances
-      .filter(staker => staker.amount > 0n)
-      .sort((a, b) => (a.amount > b.amount ? -1 : 1))
-      .map((staker, index) => ({ 
-        address: staker.address,
-        amount: staker.amount,
-        rank: index + 1 
-      }))
-      .slice(0, 1000)
-
-    console.log(`✅ Found ${validStakers.length} valid stakers`)
-    return validStakers
-
-  } catch (error) {
-    console.error('Blockchain fetch failed:', error)
-    throw error
-  }
+// Get time until next refresh is allowed
+export function getTimeUntilNextRefresh(): number {
+  const lastRefresh = localStorage.getItem(REFRESH_CACHE_KEY)
+  if (!lastRefresh) return 0
+  
+  const timeSinceRefresh = Date.now() - parseInt(lastRefresh)
+  const remaining = REFRESH_COOLDOWN_MS - timeSinceRefresh
+  return Math.max(0, remaining)
 }
 
 // Save to Supabase
@@ -109,18 +35,24 @@ async function saveToSupabase(stakers: Staker[]): Promise<void> {
     // Clear existing data
     await supabase.from('tipn_stakers').delete().neq('address', '')
     
-    // Insert new data
-    const stakersToCache = stakers.map(staker => ({
-      address: staker.address,
-      amount: staker.amount.toString(),
-      rank: staker.rank,
-      updated_at: new Date().toISOString()
-    }))
+    // Insert new data in batches to avoid payload limits
+    const batchSize = 1000
+    for (let i = 0; i < stakers.length; i += batchSize) {
+      const batch = stakers.slice(i, i + batchSize)
+      const stakersToCache = batch.map(staker => ({
+        address: staker.address,
+        amount: staker.amount.toString(),
+        rank: staker.rank,
+        updated_at: new Date().toISOString()
+      }))
 
-    const { error } = await supabase.from('tipn_stakers').insert(stakersToCache)
-    if (error) throw error
+      const { error } = await supabase.from('tipn_stakers').insert(stakersToCache)
+      if (error) throw error
+      
+      console.log(`💾 Saved batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(stakers.length / batchSize)}`)
+    }
     
-    console.log(`✅ Saved ${stakersToCache.length} stakers to Supabase`)
+    console.log(`✅ Saved ${stakers.length} stakers to Supabase`)
   } catch (error) {
     console.error('Failed to save to Supabase:', error)
     throw error
@@ -140,41 +72,79 @@ async function loadFromSupabase(): Promise<Staker[]> {
 
     if (error) throw error
     
-    return data.map(cached => ({
+    if (!data || data.length === 0) {
+      console.log('📭 No cached data found in Supabase')
+      return []
+    }
+    
+    const stakers = data.map(cached => ({
       address: cached.address,
       amount: BigInt(cached.amount),
       rank: cached.rank
     }))
+    
+    console.log(`✅ Loaded ${stakers.length} stakers from Supabase`)
+    return stakers
   } catch (error) {
     console.error('Failed to load from Supabase:', error)
     throw error
   }
 }
 
-// Main fetch function
+// Main fetch function - always tries Supabase first, then Ankr if needed
 async function fetchTopStakers(): Promise<Staker[]> {
   try {
-    // Try blockchain first
-    const freshStakers = await fetchFromBlockchain()
+    // Always try Supabase first for fast loading
+    const cachedStakers = await loadFromSupabase()
+    
+    if (cachedStakers.length > 0) {
+      console.log('🎯 Using cached data from Supabase')
+      return cachedStakers
+    }
+    
+    // If no cached data, fetch fresh data from Ankr
+    console.log('🔄 No cached data - fetching fresh data from Ankr...')
+    const freshStakers = await fetchTopTipnHolders(1000)
     
     // Save to Supabase in background
     saveToSupabase(freshStakers).catch(error => {
-      console.warn('Background save failed:', error)
+      console.warn('Background save to Supabase failed:', error)
     })
     
     return freshStakers
     
-  } catch (blockchainError) {
-    console.warn('Blockchain fetch failed, trying Supabase fallback:', blockchainError)
+  } catch (error) {
+    console.error('Failed to fetch top stakers:', error)
+    throw error
+  }
+}
+
+// Force refresh function (with cooldown protection)
+export async function forceRefreshStakers(): Promise<Staker[]> {
+  if (!canRefresh()) {
+    const remainingMs = getTimeUntilNextRefresh()
+    const remainingMinutes = Math.ceil(remainingMs / (60 * 1000))
+    throw new Error(`Please wait ${remainingMinutes} more minutes before refreshing again`)
+  }
+
+  console.log('🔄 Force refresh initiated...')
+  
+  try {
+    // Fetch fresh data from Ankr
+    const freshStakers = await fetchTopTipnHolders(1000)
     
-    try {
-      const supabaseStakers = await loadFromSupabase()
-      console.log(`✅ Loaded ${supabaseStakers.length} stakers from Supabase fallback`)
-      return supabaseStakers
-    } catch (supabaseError) {
-      console.error('Both blockchain and Supabase failed:', supabaseError)
-      throw new Error('Unable to fetch staker data from any source')
-    }
+    // Save to Supabase
+    await saveToSupabase(freshStakers)
+    
+    // Update refresh timestamp
+    localStorage.setItem(REFRESH_CACHE_KEY, Date.now().toString())
+    
+    console.log(`✅ Force refresh completed - ${freshStakers.length} stakers updated`)
+    return freshStakers
+    
+  } catch (error) {
+    console.error('❌ Force refresh failed:', error)
+    throw error
   }
 }
 
@@ -183,16 +153,15 @@ export function useTopStakers() {
   return useQuery({
     queryKey: ['topStakers'],
     queryFn: fetchTopStakers,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
+    staleTime: 10 * 60 * 1000, // 10 minutes - data is considered fresh
+    gcTime: 60 * 60 * 1000, // 1 hour - keep in cache
     refetchOnWindowFocus: false,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   })
 }
 
-// Manual refresh function
-export async function forceRefreshStakers(): Promise<Staker[]> {
-  console.log('🔄 Manual refresh triggered...')
-  return fetchTopStakers()
+// Helper to check if refresh is available
+export function useCanRefresh() {
+  return canRefresh()
 }
