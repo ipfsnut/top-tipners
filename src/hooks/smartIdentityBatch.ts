@@ -1,5 +1,5 @@
 // src/hooks/useSmartIdentityBatch.ts
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { batchGetIdentitiesWithCache, getRateLimitStatus, type DisplayIdentity } from '@/services/cachedIdentityService'
 
 interface UseSmartIdentityBatchOptions {
@@ -32,6 +32,10 @@ export function useSmartIdentityBatch(
   const [rateLimitStatus, setRateLimitStatus] = useState(getRateLimitStatus())
   const [stats, setStats] = useState({ totalLoaded: 0, totalCached: 0, totalFresh: 0 })
 
+  // Use refs to prevent infinite loops
+  const previousAddressesRef = useRef<string[]>([])
+  const isLoadingRef = useRef(false)
+
   // Update rate limit status periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -54,87 +58,41 @@ export function useSmartIdentityBatch(
 
   // Load identities in smart batches
   const loadIdentities = useCallback(async (addressesToLoad: string[]) => {
-    if (!enabled || addressesToLoad.length === 0) return
+    if (!enabled || addressesToLoad.length === 0 || isLoadingRef.current) {
+      return
+    }
 
+    // Prevent concurrent loads
+    isLoadingRef.current = true
     setIsLoading(true)
     setIsError(false)
     setError(null)
 
     try {
-      const prioritizedAddresses = prioritizeAddresses(addressesToLoad)
+      console.log(`🔄 Loading identities for ${addressesToLoad.length} addresses`)
       
-      // Process in chunks to avoid overwhelming the UI and respect rate limits
-      const chunks = []
-      for (let i = 0; i < prioritizedAddresses.length; i += batchSize) {
-        chunks.push(prioritizedAddresses.slice(i, i + batchSize))
-      }
+      const batchResults = await batchGetIdentitiesWithCache(addressesToLoad)
+      
+      // Update state with new identities
+      setIdentities(prev => {
+        const updated = new Map(prev)
+        batchResults.forEach((identity, address) => {
+          updated.set(address.toLowerCase(), identity)
+        })
+        return updated
+      })
 
-      let totalLoaded = 0
-      let totalCached = 0
-      let totalFresh = 0
+      // Update stats
+      setStats({
+        totalLoaded: batchResults.size,
+        totalCached: 0, // Would need to be returned from service
+        totalFresh: 0   // Would need to be returned from service
+      })
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i]
-        
-        console.log(`🔄 Processing identity batch ${i + 1}/${chunks.length} (${chunk.length} addresses)`)
-        
-        try {
-          const batchResults = await batchGetIdentitiesWithCache(chunk)
-          
-          // Count cache vs fresh hits
-          batchResults.forEach(identity => {
-            totalLoaded++
-            // Note: We'd need to modify the service to return cache hit info
-            // For now, assume mixed results
-          })
-          
-          // Update state with new identities
-          setIdentities(prev => {
-            const updated = new Map(prev)
-            batchResults.forEach((identity, address) => {
-              updated.set(address, identity)
-            })
-            return updated
-          })
-
-          // Update rate limit status after each batch
-          setRateLimitStatus(getRateLimitStatus())
-          
-          // Small delay between batches for UI responsiveness
-          if (i < chunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 200))
-          }
-          
-        } catch (batchError) {
-          console.warn(`Batch ${i + 1} failed:`, batchError)
-          
-          // For failed batch, create fallback identities
-          chunk.forEach(address => {
-            const fallbackIdentity: DisplayIdentity = {
-              address,
-              farcaster: null,
-              ens: null,
-              basename: null,
-              displayName: `${address.slice(0, 6)}...${address.slice(-4)}`,
-              displayAvatar: null,
-              profileUrl: null,
-              hasVerifiedIdentity: false,
-              identityType: 'address'
-            }
-            
-            setIdentities(prev => {
-              const updated = new Map(prev)
-              updated.set(address, fallbackIdentity)
-              return updated
-            })
-          })
-          
-          totalLoaded += chunk.length
-        }
-      }
-
-      setStats({ totalLoaded, totalCached, totalFresh })
-      console.log(`✅ Identity batch loading complete: ${totalLoaded} total, estimated ${totalCached} cached, ${totalFresh} fresh`)
+      // Update rate limit status
+      setRateLimitStatus(getRateLimitStatus())
+      
+      console.log(`✅ Identity loading complete: ${batchResults.size} identities processed`)
 
     } catch (error) {
       console.error('Smart identity batch loading failed:', error)
@@ -144,7 +102,7 @@ export function useSmartIdentityBatch(
       // Create fallback identities for all addresses
       addressesToLoad.forEach(address => {
         const fallbackIdentity: DisplayIdentity = {
-          address,
+          address: address.toLowerCase(),
           farcaster: null,
           ens: null,
           basename: null,
@@ -157,44 +115,57 @@ export function useSmartIdentityBatch(
         
         setIdentities(prev => {
           const updated = new Map(prev)
-          updated.set(address, fallbackIdentity)
+          updated.set(address.toLowerCase(), fallbackIdentity)
           return updated
         })
       })
     } finally {
       setIsLoading(false)
+      isLoadingRef.current = false
     }
-  }, [enabled, batchSize, prioritizeAddresses])
+  }, [enabled, batchGetIdentitiesWithCache])
 
-  // Load identities when addresses change
+  // Check if addresses have meaningfully changed
+  const hasAddressesChanged = useCallback((newAddresses: string[], oldAddresses: string[]): boolean => {
+    if (newAddresses.length !== oldAddresses.length) return true
+    
+    const newSet = new Set(newAddresses.map(addr => addr.toLowerCase()))
+    const oldSet = new Set(oldAddresses.map(addr => addr.toLowerCase()))
+    
+    // Check if more than 10% of addresses are different
+    const intersection = new Set([...newSet].filter(x => oldSet.has(x)))
+    const similarity = intersection.size / Math.max(newSet.size, oldSet.size, 1)
+    
+    return similarity < 0.9 // Only reload if >10% difference
+  }, [])
+
+  // Load identities when addresses change (with proper change detection)
   useEffect(() => {
-    if (addresses.length > 0) {
-      // Clear existing identities when addresses change significantly
-      const existingAddresses = Array.from(identities.keys())
-      const addressSet = new Set(addresses.map(addr => addr.toLowerCase()))
-      const existingSet = new Set(existingAddresses)
-      
-      // If more than 50% of addresses are different, clear and reload
-      const intersection = new Set([...addressSet].filter(x => existingSet.has(x)))
-      const similarity = intersection.size / Math.max(addressSet.size, existingSet.size)
-      
-      if (similarity < 0.5) {
-        console.log('🔄 Address list changed significantly, reloading identities')
-        setIdentities(new Map())
-        loadIdentities(addresses)
-      } else {
-        // Only load missing addresses
-        const missingAddresses = addresses.filter(addr => 
-          !identities.has(addr.toLowerCase())
-        )
-        
-        if (missingAddresses.length > 0) {
-          console.log(`🔄 Loading ${missingAddresses.length} missing identities`)
-          loadIdentities(missingAddresses)
-        }
-      }
+    if (!enabled || addresses.length === 0) {
+      return
     }
-  }, [addresses, loadIdentities]) // Note: identities is intentionally not in deps to avoid loops
+
+    const normalizedAddresses = addresses.map(addr => addr.toLowerCase())
+    
+    // Check if this is a meaningful change
+    if (!hasAddressesChanged(normalizedAddresses, previousAddressesRef.current)) {
+      return
+    }
+
+    // Only load missing addresses to avoid unnecessary API calls
+    const missingAddresses = normalizedAddresses.filter(addr => 
+      !identities.has(addr.toLowerCase())
+    )
+
+    if (missingAddresses.length > 0) {
+      console.log(`🔄 Loading ${missingAddresses.length} missing identities`)
+      previousAddressesRef.current = normalizedAddresses
+      loadIdentities(missingAddresses)
+    } else {
+      // All addresses already loaded
+      previousAddressesRef.current = normalizedAddresses
+    }
+  }, [addresses, enabled, hasAddressesChanged, loadIdentities])
 
   return {
     identities,

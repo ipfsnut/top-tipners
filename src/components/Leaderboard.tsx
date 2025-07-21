@@ -26,7 +26,11 @@ const Leaderboard: React.FC = () => {
     if (!searchTerm) return stakers
     
     return stakers.filter(staker => 
-      staker.address.toLowerCase().includes(searchTerm.toLowerCase())
+      staker.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staker.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (staker.farcasterUsername && staker.farcasterUsername.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (staker.ensName && staker.ensName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (staker.basename && staker.basename.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   }, [stakers, searchTerm])
 
@@ -56,7 +60,7 @@ const Leaderboard: React.FC = () => {
       console.log(`✅ Manual refresh complete - ${freshData.length} stakers updated`)
     } catch (error) {
       console.error('❌ Manual refresh failed:', error)
-      // Optionally show a toast notification here
+      // You could add a toast notification here
     } finally {
       setIsManualRefreshing(false)
     }
@@ -65,6 +69,12 @@ const Leaderboard: React.FC = () => {
   const totalStaked = useMemo(() => {
     if (!stakers) return 0n
     return stakers.reduce((sum, staker) => sum + staker.amount, 0n)
+  }, [stakers])
+
+  // Count verified identities
+  const verifiedCount = useMemo(() => {
+    if (!stakers) return 0
+    return stakers.filter(staker => staker.hasVerifiedIdentity).length
   }, [stakers])
 
   if (isLoading) {
@@ -112,10 +122,14 @@ const Leaderboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Cache Info */}
-      <div className="mb-6 text-center text-sm text-gray-400">
-        Data is cached for 1 hour to minimize blockchain calls. 
-        Use the refresh button above to get the latest data.
+      {/* Status Info */}
+      <div className="mb-6 text-center text-sm text-gray-400 space-y-1">
+        <div>
+          Staking data cached for 1 hour. Identity data includes Farcaster, ENS, and Basename resolution.
+        </div>
+        <div>
+          <span className="text-tipn-primary font-semibold">{verifiedCount}</span> of {stakers.length} stakers have verified identities
+        </div>
       </div>
 
       {/* Leaderboard Table */}
@@ -125,17 +139,22 @@ const Leaderboard: React.FC = () => {
             <thead className="bg-gray-700 border-b border-gray-600">
               <tr>
                 <th className="px-6 py-4 text-left font-semibold">Rank</th>
-                <th className="px-6 py-4 text-left font-semibold">Address</th>
+                <th className="px-6 py-4 text-left font-semibold">User</th>
                 <th className="px-6 py-4 text-right font-semibold">Staked Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {paginatedStakers.map((staker, index) => (
-                <LeaderboardRow 
-                  key={staker.address}
-                  staker={staker}
-                  index={startIndex + index} identity={null}                />
-              ))}
+              {paginatedStakers.map((staker, index) => {
+                const actualRank = startIndex + index + 1
+                
+                return (
+                  <LeaderboardRow 
+                    key={staker.address}
+                    staker={staker}
+                    rank={actualRank}
+                  />
+                )
+              })}
             </tbody>
           </table>
         </div>

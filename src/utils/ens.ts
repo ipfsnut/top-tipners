@@ -6,18 +6,17 @@ import { base, mainnet } from 'viem/chains'
 const ensCache = new Map<string, string | null>()
 
 // Get Ankr RPC endpoint from environment
-const ANKR_RPC_BASE_URL = 'https://rpc.ankr.com/base'
 const ANKR_API_KEY = import.meta.env.VITE_ANKR_API_KEY
 
-// Create clients for ENS resolution using your Ankr RPC
+// Create clients for ENS resolution using your Ankr RPC with proper API key
 const mainnetClient = createPublicClient({
   chain: mainnet,
-  transport: http('https://rpc.ankr.com/eth') // Ankr Ethereum endpoint
+  transport: http(ANKR_API_KEY ? `https://rpc.ankr.com/eth/${ANKR_API_KEY}` : 'https://rpc.ankr.com/eth')
 })
 
 const baseClient = createPublicClient({
   chain: base,
-  transport: http(ANKR_API_KEY ? `${ANKR_RPC_BASE_URL}/${ANKR_API_KEY}` : ANKR_RPC_BASE_URL)
+  transport: http(ANKR_API_KEY ? `https://rpc.ankr.com/base/${ANKR_API_KEY}` : 'https://rpc.ankr.com/base')
 })
 
 // Check if address has an ENS name (mainnet)
@@ -30,15 +29,19 @@ export async function resolveENS(address: string): Promise<string | null> {
   }
 
   try {
+    console.log(`🔍 Resolving ENS for ${address}`)
+    
     const ensName = await mainnetClient.getEnsName({
       address: address as `0x${string}`,
     })
 
+    console.log(`✅ ENS resolved: ${address} → ${ensName || 'none'}`)
+    
     // Cache the result (including null)
     ensCache.set(cacheKey, ensName)
     return ensName
   } catch (error) {
-    console.warn(`ENS lookup failed for ${address}:`, error)
+    console.warn(`❌ ENS lookup failed for ${address}:`, error)
     ensCache.set(cacheKey, null)
     return null
   }
@@ -54,16 +57,23 @@ export async function resolveBasename(address: string): Promise<string | null> {
   }
 
   try {
-    // Base uses the same ENS interface but on Base network
-    const baseName = await baseClient.getEnsName({
-      address: address as `0x${string}`,
-    })
+    console.log(`🔍 Resolving Basename for ${address}`)
+    
+    // TEMPORARY: Disable basename resolution due to Base network ENS configuration issues
+    // Base network doesn't have ensUniversalResolver configured in current Viem version
+    console.log(`⚠️ Basename resolution temporarily disabled - Base ENS not configured`)
+    ensCache.set(cacheKey, null)
+    return null
 
-    // Cache the result
-    ensCache.set(cacheKey, baseName)
-    return baseName
+    // TODO: Re-enable when Base ENS resolver is properly configured
+    // const baseName = await baseClient.getEnsName({
+    //   address: address as `0x${string}`,
+    // })
+    // console.log(`✅ Basename resolved: ${address} → ${baseName || 'none'}`)
+    // ensCache.set(cacheKey, baseName)
+    // return baseName
   } catch (error) {
-    console.warn(`Basename lookup failed for ${address}:`, error)
+    console.warn(`❌ Basename lookup failed for ${address}:`, error)
     ensCache.set(cacheKey, null)
     return null
   }
@@ -105,7 +115,7 @@ export async function batchResolveName(addresses: string[]): Promise<Map<string,
   const results = new Map<string, string | null>()
   
   // Process in batches to avoid overwhelming RPC
-  const batchSize = 5 // Smaller batches for reliability
+  const batchSize = 3 // Smaller batches for reliability
   for (let i = 0; i < addresses.length; i += batchSize) {
     const batch = addresses.slice(i, i + batchSize)
     
@@ -130,9 +140,10 @@ export async function batchResolveName(addresses: string[]): Promise<Map<string,
       }
     })
     
-    // Small delay between batches to be nice to RPC
+    // Longer delay between batches to respect rate limits
     if (i + batchSize < addresses.length) {
-      await new Promise(resolve => setTimeout(resolve, 200))
+      console.log(`⏳ Waiting between ENS batches... (${i + batchSize}/${addresses.length})`)
+      await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay
     }
   }
   
@@ -142,4 +153,29 @@ export async function batchResolveName(addresses: string[]): Promise<Map<string,
 // Clear cache (useful for manual refresh)
 export function clearENSCache(): void {
   ensCache.clear()
+  console.log('🗑️ ENS cache cleared')
+}
+
+// Test function to verify API key is working
+export async function testAnkrENSConnection(): Promise<boolean> {
+  try {
+    console.log('🧪 Testing Ankr ENS connection...')
+    
+    // Test with a known ENS address (vitalik.eth)
+    const testAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+    const ensName = await mainnetClient.getEnsName({
+      address: testAddress as `0x${string}`,
+    })
+    
+    if (ensName) {
+      console.log(`✅ Ankr ENS test successful: ${testAddress} → ${ensName}`)
+      return true
+    } else {
+      console.log(`⚠️ Ankr ENS test: No ENS name found for test address`)
+      return true // Still working, just no ENS name
+    }
+  } catch (error) {
+    console.error('❌ Ankr ENS test failed:', error)
+    return false
+  }
 }

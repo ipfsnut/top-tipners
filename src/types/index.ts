@@ -1,9 +1,32 @@
+// Basic staker interface (original)
 export interface Staker {
   address: string
   amount: bigint
   rank: number
 }
 
+// Extended staker interface with identity data (NEW - replaces separate identity interfaces)
+export interface StakerWithIdentity {
+  // Core staker data
+  address: string
+  amount: bigint
+  rank: number
+  
+  // Identity data (embedded in same object)
+  displayName: string
+  farcasterUsername?: string
+  farcasterDisplayName?: string
+  farcasterPfpUrl?: string
+  farcasterBio?: string
+  farcasterFollowerCount?: number
+  ensName?: string
+  basename?: string
+  hasVerifiedIdentity: boolean
+  identityType: 'farcaster' | 'ens' | 'basename' | 'address'
+  profileUrl?: string
+}
+
+// Component prop interfaces
 export interface PaginationProps {
   currentPage: number
   totalPages: number
@@ -11,8 +34,8 @@ export interface PaginationProps {
 }
 
 export interface LeaderboardRowProps {
-  staker: Staker
-  index: number
+  staker: StakerWithIdentity
+  rank: number
 }
 
 export interface SearchBarProps {
@@ -26,7 +49,7 @@ export interface StatsGridProps {
   network: string
 }
 
-// Farcaster types
+// Legacy Farcaster types (still used by utils)
 export interface FarcasterUser {
   fid: number
   username: string
@@ -38,6 +61,7 @@ export interface FarcasterUser {
   verifiedAddresses?: string[]
 }
 
+// Legacy identity interface (deprecated - use StakerWithIdentity instead)
 export interface UserIdentity {
   address: string
   farcaster: FarcasterUser | null

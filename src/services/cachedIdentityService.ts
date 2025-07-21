@@ -10,6 +10,8 @@ const RATE_LIMIT_CONFIG = {
   MAX_BATCH_SIZE: 5, // Small batches
   DELAY_BETWEEN_REQUESTS: 2000, // 2 seconds between requests
   CACHE_EXPIRY_HOURS: 24 * 7, // Cache for 1 week
+  // New: Supabase query batching limits
+  SUPABASE_BATCH_SIZE: 100, // Maximum addresses per Supabase query to avoid URL length issues
 }
 
 // Track API usage to respect rate limits
@@ -101,27 +103,43 @@ function isCacheExpired(lastUpdated: string): boolean {
   return (now - cacheTime) > expiryTime
 }
 
-// Load cached identities from Supabase
+// Load cached identities from Supabase with proper batching
 export async function loadCachedIdentities(addresses: string[]): Promise<Map<string, CachedIdentity>> {
   try {
     console.log(`📦 Loading ${addresses.length} cached identities from Supabase...`)
     
-    const { data, error } = await supabase
-      .from('farcaster_identities')
-      .select('*')
-      .in('address', addresses.map(addr => addr.toLowerCase()))
-
-    if (error) throw error
-    
     const cached = new Map<string, CachedIdentity>()
     
-    if (data) {
-      data.forEach(row => {
-        cached.set(row.address, row as CachedIdentity)
-      })
+    // Process in batches to avoid URL length issues
+    const batchSize = RATE_LIMIT_CONFIG.SUPABASE_BATCH_SIZE
+    for (let i = 0; i < addresses.length; i += batchSize) {
+      const batch = addresses.slice(i, i + batchSize).map(addr => addr.toLowerCase())
+      
+      console.log(`📦 Loading batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(addresses.length / batchSize)} (${batch.length} addresses)`)
+      
+      const { data, error } = await supabase
+        .from('farcaster_identities')
+        .select('*')
+        .in('address', batch)
+
+      if (error) {
+        console.warn(`Failed to load batch ${Math.floor(i / batchSize) + 1}:`, error)
+        continue
+      }
+      
+      if (data) {
+        data.forEach(row => {
+          cached.set(row.address, row as CachedIdentity)
+        })
+      }
+      
+      // Small delay between batches to be nice to Supabase
+      if (i + batchSize < addresses.length) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
     }
     
-    console.log(`✅ Loaded ${cached.size} cached identities`)
+    console.log(`✅ Loaded ${cached.size} cached identities from ${Math.ceil(addresses.length / batchSize)} batches`)
     return cached
     
   } catch (error) {
@@ -328,7 +346,7 @@ export async function getIdentityWithCache(address: string): Promise<DisplayIden
   }
 }
 
-// Batch processing with smart rate limiting
+// Batch processing with smart rate limiting and proper Supabase batching
 export async function batchGetIdentitiesWithCache(addresses: string[]): Promise<Map<string, DisplayIdentity>> {
   const results = new Map<string, DisplayIdentity>()
   const normalizedAddresses = addresses.map(addr => addr.toLowerCase())
@@ -336,7 +354,7 @@ export async function batchGetIdentitiesWithCache(addresses: string[]): Promise<
   console.log(`🔄 Starting smart batch identity lookup for ${addresses.length} addresses`)
   
   try {
-    // Load all cached identities first
+    // Load all cached identities first (with proper batching)
     const cached = await loadCachedIdentities(normalizedAddresses)
     
     // Separate fresh vs expired/missing

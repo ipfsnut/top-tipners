@@ -1,39 +1,60 @@
--- Create table for TIPN stakers cache
-CREATE TABLE IF NOT EXISTS public.tipn_stakers (
-    address TEXT PRIMARY KEY,
-    amount TEXT NOT NULL,
-    rank INTEGER NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Add identity columns to existing tipn_stakers table
+-- This allows us to fetch staking data + identities in a single query
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_tipn_stakers_rank 
-ON public.tipn_stakers(rank);
+-- Add Farcaster columns
+ALTER TABLE public.tipn_stakers 
+ADD COLUMN IF NOT EXISTS fid INTEGER,
+ADD COLUMN IF NOT EXISTS farcaster_username TEXT,
+ADD COLUMN IF NOT EXISTS farcaster_display_name TEXT,
+ADD COLUMN IF NOT EXISTS farcaster_pfp_url TEXT,
+ADD COLUMN IF NOT EXISTS farcaster_bio TEXT,
+ADD COLUMN IF NOT EXISTS farcaster_follower_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS farcaster_following_count INTEGER DEFAULT 0;
 
-CREATE INDEX IF NOT EXISTS idx_tipn_stakers_updated_at 
-ON public.tipn_stakers(updated_at);
+-- Add ENS/Basename columns  
+ALTER TABLE public.tipn_stakers
+ADD COLUMN IF NOT EXISTS ens_name TEXT,
+ADD COLUMN IF NOT EXISTS basename TEXT;
 
-CREATE INDEX IF NOT EXISTS idx_tipn_stakers_amount 
-ON public.tipn_stakers(amount);
+-- Add identity metadata
+ALTER TABLE public.tipn_stakers
+ADD COLUMN IF NOT EXISTS has_verified_identity BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS identity_type TEXT DEFAULT 'address',
+ADD COLUMN IF NOT EXISTS display_name TEXT,
+ADD COLUMN IF NOT EXISTS profile_url TEXT,
+ADD COLUMN IF NOT EXISTS identity_last_updated TIMESTAMP WITH TIME ZONE;
 
--- Enable Row Level Security (RLS)
-ALTER TABLE public.tipn_stakers ENABLE ROW LEVEL SECURITY;
+-- Create indexes for better performance on identity searches
+CREATE INDEX IF NOT EXISTS idx_tipn_stakers_farcaster_username 
+ON public.tipn_stakers(farcaster_username) WHERE farcaster_username IS NOT NULL;
 
--- Create policy to allow public read access
-CREATE POLICY "Allow public read access" ON public.tipn_stakers
-    FOR SELECT USING (true);
+CREATE INDEX IF NOT EXISTS idx_tipn_stakers_ens_name 
+ON public.tipn_stakers(ens_name) WHERE ens_name IS NOT NULL;
 
--- Create policy to allow public insert/update/delete for cache operations
-CREATE POLICY "Allow public write access" ON public.tipn_stakers
-    FOR ALL USING (true);
+CREATE INDEX IF NOT EXISTS idx_tipn_stakers_basename 
+ON public.tipn_stakers(basename) WHERE basename IS NOT NULL;
 
--- Grant permissions to anon and authenticated users
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.tipn_stakers TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.tipn_stakers TO authenticated;
+CREATE INDEX IF NOT EXISTS idx_tipn_stakers_has_verified_identity 
+ON public.tipn_stakers(has_verified_identity);
+
+CREATE INDEX IF NOT EXISTS idx_tipn_stakers_identity_type 
+ON public.tipn_stakers(identity_type);
 
 -- Add comments for documentation
-COMMENT ON TABLE public.tipn_stakers IS 'Cache table for TIPN staking leaderboard data';
-COMMENT ON COLUMN public.tipn_stakers.address IS 'Ethereum address of the staker';
-COMMENT ON COLUMN public.tipn_stakers.amount IS 'Staked amount in wei (stored as text for BigInt compatibility)';
-COMMENT ON COLUMN public.tipn_stakers.rank IS 'Ranking position in the leaderboard';
-COMMENT ON COLUMN public.tipn_stakers.updated_at IS 'Timestamp when this record was last updated';
+COMMENT ON COLUMN public.tipn_stakers.fid IS 'Farcaster ID number';
+COMMENT ON COLUMN public.tipn_stakers.farcaster_username IS 'Farcaster username';
+COMMENT ON COLUMN public.tipn_stakers.farcaster_display_name IS 'Display name from Farcaster profile';
+COMMENT ON COLUMN public.tipn_stakers.farcaster_pfp_url IS 'Profile picture URL from Farcaster';
+COMMENT ON COLUMN public.tipn_stakers.farcaster_bio IS 'Bio text from Farcaster profile';
+COMMENT ON COLUMN public.tipn_stakers.farcaster_follower_count IS 'Number of Farcaster followers';
+COMMENT ON COLUMN public.tipn_stakers.farcaster_following_count IS 'Number of accounts following on Farcaster';
+COMMENT ON COLUMN public.tipn_stakers.ens_name IS 'ENS name (.eth domain)';
+COMMENT ON COLUMN public.tipn_stakers.basename IS 'Base name (.base.eth domain)';
+COMMENT ON COLUMN public.tipn_stakers.has_verified_identity IS 'True if address has any verified identity (Farcaster/ENS/Basename)';
+COMMENT ON COLUMN public.tipn_stakers.identity_type IS 'Primary identity type: farcaster, ens, basename, or address';
+COMMENT ON COLUMN public.tipn_stakers.display_name IS 'Computed display name based on priority: Farcaster > Basename > ENS > Address';
+COMMENT ON COLUMN public.tipn_stakers.profile_url IS 'URL to profile page (e.g., Warpcast profile)';
+COMMENT ON COLUMN public.tipn_stakers.identity_last_updated IS 'When identity data was last refreshed from APIs';
+
+-- Optional: Drop the separate farcaster_identities table if you want to clean up
+-- DROP TABLE IF EXISTS public.farcaster_identities;
