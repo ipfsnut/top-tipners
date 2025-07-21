@@ -106,10 +106,16 @@ async function fetchTopStakers(): Promise<Staker[]> {
     console.log('🔄 No cached data - fetching fresh data from Ankr...')
     const freshStakers = await fetchTopTipnHolders(1000)
     
-    // Save to Supabase in background
-    saveToSupabase(freshStakers).catch(error => {
-      console.warn('Background save to Supabase failed:', error)
-    })
+    // Save to Supabase with proper error handling (NOT in background)
+    try {
+      console.log('💾 Saving fresh data to Supabase...')
+      await saveToSupabase(freshStakers)
+      console.log('✅ Successfully cached data in Supabase')
+    } catch (supabaseError) {
+      console.error('❌ Failed to save to Supabase:', supabaseError)
+      console.error('⚠️ Data will not be cached - next load will fetch fresh from Ankr')
+      // Continue anyway - we still have the data to display
+    }
     
     return freshStakers
     
