@@ -1,0 +1,50 @@
+{
+  "accountAssociation": {
+    "header": "farcaster:account-association",
+    "payload": "domain:top-tipners.epicdylan.com",
+    "signature": "0x..."
+  },
+  "frame": {
+    "name": "Top Tipners - TIPN Leaderboard",
+    "iconUrl": "https://top-tipners.epicdylan.com/tipn-icon.png",
+    "homeUrl": "https://top-tipners.epicdylan.com",
+    "splashImageUrl": "https://top-tipners.epicdylan.com/tipn-splash.png",
+    "splashBackgroundColor": "#1e293b",
+    "websiteUrl": "https://top-tipners.epicdylan.com"
+  },
+  "metadata": {
+    "name": "Top Tipners",
+    "description": "Community leaderboard for top TIPN stakers on Base mainnet. Track rankings, view verified identities, and explore the TIPN ecosystem.",
+    "longDescription": "Top Tipners is the premier community-built leaderboard showcasing the top 1000 $TIPN token stakers on Base mainnet. Features real-time staking data, Farcaster identity integration, ENS/Basename resolution, and comprehensive search functionality. Built by the community, for the community.",
+    "keywords": ["TIPN", "staking", "leaderboard", "Base", "DeFi", "cryptocurrency", "Farcaster"],
+    "category": "defi",
+    "version": "1.0.0",
+    "author": {
+      "name": "TIPN Community",
+      "url": "https://top-tipners.epicdylan.com"
+    },
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/epicdylan/top-tipners"
+    },
+    "license": "MIT"
+  },
+  "permissions": [
+    {
+      "permission": "wallet",
+      "reason": "To display your current TIPN staking position and rank in the leaderboard"
+    },
+    {
+      "permission": "identity",
+      "reason": "To show your Farcaster profile information alongside your staking data"
+    }
+  ],
+  "images": {
+    "icon_16": "https://top-tipners.epicdylan.com/icons/icon-16.png",
+    "icon_32": "https://top-tipners.epicdylan.com/icons/icon-32.png",
+    "icon_64": "https://top-tipners.epicdylan.com/icons/icon-64.png",
+    "icon_128": "https://top-tipners.epicdylan.com/icons/icon-128.png",
+    "icon_256": "https://top-tipners.epicdylan.com/icons/icon-256.png",
+    "icon_512": "https://top-tipners.epicdylan.com/icons/icon-512.png"
+  }
+}

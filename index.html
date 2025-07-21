@@ -2,13 +2,66 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/tipn-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Community leaderboard for top TIPN stakers on Base mainnet" />
-    <meta name="keywords" content="TIPN, cryptocurrency, staking, leaderboard, Base, blockchain" />
-    <meta property="og:title" content="Top Tipners - Community Leaderboard" />
-    <meta property="og:description" content="Track the top 1000 TIPN stakers on Base mainnet" />
+    
+    <!-- Basic Meta Tags -->
+    <meta name="description" content="Community leaderboard for top TIPN stakers on Base mainnet. Track rankings, view verified identities, and explore the TIPN ecosystem." />
+    <meta name="keywords" content="TIPN, cryptocurrency, staking, leaderboard, Base, blockchain, DeFi, Farcaster" />
+    <meta name="author" content="TIPN Community" />
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://top-tipners.epicdylan.com" />
+    <meta property="og:title" content="Top Tipners - Community Leaderboard" />
+    <meta property="og:description" content="Track the top 1000 TIPN stakers on Base mainnet. Real-time rankings with Farcaster identity integration." />
+    <meta property="og:image" content="https://top-tipners.epicdylan.com/tipn-og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Top Tipners" />
+    
+    <!-- Twitter Card -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://top-tipners.epicdylan.com" />
+    <meta property="twitter:title" content="Top Tipners - Community Leaderboard" />
+    <meta property="twitter:description" content="Track the top 1000 TIPN stakers on Base mainnet. Real-time rankings with Farcaster identity integration." />
+    <meta property="twitter:image" content="https://top-tipners.epicdylan.com/tipn-og-image.png" />
+    
+    <!-- Farcaster Frame Meta Tags -->
+    <meta property="fc:frame" content="vNext" />
+    <meta property="fc:frame:image" content="https://top-tipners.epicdylan.com/tipn-frame-image.png" />
+    <meta property="fc:frame:image:aspect_ratio" content="1.91:1" />
+    <meta property="fc:frame:button:1" content="View Leaderboard" />
+    <meta property="fc:frame:button:1:action" content="link" />
+    <meta property="fc:frame:button:1:target" content="https://top-tipners.epicdylan.com" />
+    <meta property="fc:frame:button:2" content="Check My Rank" />
+    <meta property="fc:frame:button:2:action" content="post" />
+    <meta property="fc:frame:post_url" content="https://top-tipners.epicdylan.com/api/frame" />
+    
+    <!-- Farcaster Mini App Manifest -->
+    <link rel="manifest" href="/.well-known/farcaster.json" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/icons/icon-64.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    
+    <!-- Theme -->
+    <meta name="theme-color" content="#8B5CF6" />
+    <meta name="color-scheme" content="dark" />
+    
+    <!-- Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.neynar.com" />
+    <link rel="dns-prefetch" href="https://mainnet.base.org" />
+    
+    <!-- Security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    
     <title>Top Tipners - Community Leaderboard</title>
   </head>
   <body class="bg-gray-900 text-white">

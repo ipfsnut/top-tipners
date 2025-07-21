@@ -228,16 +228,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
   }
 
   return (
-    <div className="mb-6 lg:mb-10">
+    <div className="mb-4 md:mb-6 lg:mb-10 px-4 md:px-0">
       <div className="relative max-w-lg mx-auto">
         <input
           type="text"
           placeholder="Search by @username, ENS, or address..."
           value={searchTerm}
           onChange={handleInputChange}
-          className="w-full px-4 lg:px-6 py-3 lg:py-4 pl-12 lg:pl-14 bg-slate-800/70 backdrop-blur-sm border border-slate-600/50 rounded-xl lg:rounded-2xl focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 transition-all duration-200 text-base lg:text-lg text-white placeholder-slate-400"
+          className="w-full px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-4 pl-10 md:pl-12 lg:pl-14 bg-slate-800/70 backdrop-blur-sm border border-slate-600/50 rounded-lg md:rounded-xl lg:rounded-2xl focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 transition-all duration-200 text-sm md:text-base lg:text-lg text-white placeholder-slate-400"
         />
-        <div className="absolute left-4 lg:left-5 top-1/2 transform -translate-y-1/2">
+        <div className="absolute left-3 md:left-4 lg:left-5 top-1/2 transform -translate-y-1/2">
           {getSearchIcon()}
         </div>
         
@@ -250,7 +250,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
                 <img
                   src={searchHint.avatar}
                   alt="Profile"
-                  className="w-5 h-5 rounded-full"
+                  className="w-4 h-4 md:w-5 md:h-5 rounded-full"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
                     target.style.display = 'none'
@@ -260,12 +260,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
                 getHintIcon()
               )}
               
-              <span className={getHintColor()}>
+              <span className={`${getHintColor()} flex-1 truncate`}>
                 {searchHint.message}
               </span>
               
               {searchHint.resolvedAddress && (
-                <span className="text-xs text-slate-500 font-mono ml-auto">
+                <span className="text-xs text-slate-500 font-mono hidden sm:inline">
                   {searchHint.resolvedAddress.slice(0, 6)}...{searchHint.resolvedAddress.slice(-4)}
                 </span>
               )}
@@ -276,18 +276,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange }) => 
       
       {/* Search tips */}
       <div className="text-center mt-2 text-xs text-slate-500">
-        <div className="flex items-center justify-center gap-4 flex-wrap">
+        <div className="flex items-center justify-center gap-2 md:gap-4 flex-wrap">
           <span className="flex items-center gap-1">
-            <MessageCircle className="w-3 h-3 text-purple-400" />
-            @dwr.eth
+            <MessageCircle className="w-2.5 h-2.5 md:w-3 md:h-3 text-purple-400" />
+            <span className="hidden sm:inline">@dwr.eth</span>
+            <span className="sm:hidden">@dwr</span>
           </span>
           <span className="flex items-center gap-1">
-            <User className="w-3 h-3 text-green-400" />
-            vitalik.eth
+            <User className="w-2.5 h-2.5 md:w-3 md:h-3 text-green-400" />
+            <span className="hidden sm:inline">vitalik.eth</span>
+            <span className="sm:hidden">.eth</span>
           </span>
           <span className="flex items-center gap-1">
-            <User className="w-3 h-3 text-blue-400" />
-            alice.base.eth
+            <User className="w-2.5 h-2.5 md:w-3 md:h-3 text-blue-400" />
+            <span className="hidden sm:inline">alice.base.eth</span>
+            <span className="sm:hidden">.base.eth</span>
           </span>
           <span className="text-slate-600">or 0x1234...</span>
         </div>
