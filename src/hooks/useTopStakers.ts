@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createPublicClient, http, getContract, parseAbiItem } from 'viem'
 import { base } from 'viem/chains'
+import { createClient } from '@supabase/supabase-js'
 
 // Types
 interface Staker {
@@ -9,8 +10,20 @@ interface Staker {
   rank: number
 }
 
+interface CachedStaker {
+  address: string
+  amount: string // Stored as string in Supabase
+  rank: number
+  updated_at: string
+}
+
 // TIPN Contract Configuration
 const TIPN_STAKING_ADDRESS = '0x715e56a9a4678c21f23513de9d637968d495074a'
+
+// Environment variables (you'll need to set these)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'your-supabase-url'
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-supabase-anon-key'
+const THIRDWEB_CLIENT_ID = import.meta.env.VITE_THIRDWEB_CLIENT_ID || 'your-thirdweb-client-id'
 
 // TIPN Staking Contract ABI
 const TIPN_STAKING_ABI = [
@@ -33,15 +46,102 @@ const TIPN_STAKING_ABI = [
   {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
 ] as const
 
-// Create Base mainnet client
+// Create Thirdweb RPC client for Base
 const publicClient = createPublicClient({
   chain: base,
-  transport: http()
+  transport: http(`https://${base.id}.rpc.thirdweb.com/${THIRDWEB_CLIENT_ID}`)
 })
 
-// Fetch stakers from Transfer events
-async function fetchStakersFromEvents(): Promise<Staker[]> {
-  console.log('🔍 Fetching Transfer events from TIPN staking contract...')
+// Create Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// Cache duration (15 minutes)
+const CACHE_DURATION_MS = 15 * 60 * 1000
+
+// Check if cached data is still valid
+function isCacheValid(timestamp: string): boolean {
+  const cacheTime = new Date(timestamp).getTime()
+  const now = Date.now()
+  return (now - cacheTime) < CACHE_DURATION_MS
+}
+
+// Get cached stakers from Supabase
+async function getCachedStakers(): Promise<Staker[] | null> {
+  try {
+    console.log('🗄️ Checking Supabase cache...')
+    
+    const { data, error } = await supabase
+      .from('tipn_stakers')
+      .select('*')
+      .order('rank', { ascending: true })
+      .limit(1000)
+
+    if (error) {
+      console.warn('Cache read error:', error.message)
+      return null
+    }
+
+    if (!data || data.length === 0) {
+      console.log('📭 No cached data found')
+      return null
+    }
+
+    // Check if cache is still valid (using first record timestamp)
+    if (!isCacheValid(data[0].updated_at)) {
+      console.log('⏰ Cache expired')
+      return null
+    }
+
+    console.log(`✅ Found ${data.length} cached stakers`)
+    
+    // Convert cached data back to Staker format
+    return data.map((cached: CachedStaker) => ({
+      address: cached.address,
+      amount: BigInt(cached.amount),
+      rank: cached.rank
+    }))
+
+  } catch (error) {
+    console.warn('Cache error:', error)
+    return null
+  }
+}
+
+// Save stakers to Supabase cache
+async function cacheStakers(stakers: Staker[]): Promise<void> {
+  try {
+    console.log('💾 Saving to Supabase cache...')
+    
+    // Clear existing cache
+    await supabase.from('tipn_stakers').delete().neq('address', '')
+    
+    // Convert BigInt to string for storage
+    const stakersToCache = stakers.map(staker => ({
+      address: staker.address,
+      amount: staker.amount.toString(),
+      rank: staker.rank,
+      updated_at: new Date().toISOString()
+    }))
+
+    // Insert new data in batches (Supabase has limits)
+    const batchSize = 100
+    for (let i = 0; i < stakersToCache.length; i += batchSize) {
+      const batch = stakersToCache.slice(i, i + batchSize)
+      const { error } = await supabase.from('tipn_stakers').insert(batch)
+      if (error) {
+        console.warn(`Cache batch ${i}-${i + batchSize} error:`, error.message)
+      }
+    }
+
+    console.log(`✅ Cached ${stakersToCache.length} stakers`)
+  } catch (error) {
+    console.warn('Cache save error:', error)
+  }
+}
+
+// Fetch stakers from blockchain using Thirdweb RPC
+async function fetchStakersFromBlockchain(): Promise<Staker[]> {
+  console.log('🌐 Fetching from Base blockchain via Thirdweb RPC...')
   
   const transferEvents = await publicClient.getLogs({
     address: TIPN_STAKING_ADDRESS,
@@ -91,7 +191,7 @@ async function fetchStakersFromEvents(): Promise<Staker[]> {
     .map((staker, index) => ({ ...staker, rank: index + 1 }))
     .slice(0, 1000)
 
-  console.log(`✅ Final result: ${validStakers.length} stakers with balances`)
+  console.log(`✅ Found ${validStakers.length} stakers with balances`)
   
   if (validStakers.length === 0) {
     throw new Error('No stakers with non-zero balances found')
@@ -100,13 +200,34 @@ async function fetchStakersFromEvents(): Promise<Staker[]> {
   return validStakers
 }
 
-// Hook to fetch top TIPN stakers
+// Main fetch function with cache strategy
+async function fetchTopStakers(): Promise<Staker[]> {
+  // First, try to get cached data
+  const cachedStakers = await getCachedStakers()
+  if (cachedStakers) {
+    console.log('🚀 Using cached data')
+    return cachedStakers
+  }
+
+  // If no valid cache, fetch from blockchain
+  console.log('🔗 Cache miss - fetching from blockchain...')
+  const freshStakers = await fetchStakersFromBlockchain()
+  
+  // Cache the fresh data (don't await - let it happen in background)
+  cacheStakers(freshStakers).catch(error => {
+    console.warn('Background cache save failed:', error)
+  })
+
+  return freshStakers
+}
+
+// Hook to fetch top TIPN stakers with Supabase caching
 export function useTopStakers() {
   return useQuery({
     queryKey: ['topStakers'],
-    queryFn: fetchStakersFromEvents,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 60000, // 1 minute
+    queryFn: fetchTopStakers,
+    staleTime: 5 * 60 * 1000, // 5 minutes (less than cache duration)
+    refetchInterval: 10 * 60 * 1000, // 10 minutes
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
