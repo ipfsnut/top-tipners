@@ -1,12 +1,14 @@
 // src/services/ankrTokenService.ts
 import type { Staker } from '@/types'
 
-// Environment variable for Ankr API
-const ANKR_API_URL = 'https://rpc.ankr.com/multichain'
+// Base URL for Ankr Advanced API (public - no secrets)
+const ANKR_BASE_URL = 'https://rpc.ankr.com/multichain'
+
+// API key from environment variable (secure)
 const ANKR_API_KEY = import.meta.env.VITE_ANKR_API_KEY
 
-// TIPN token contract address on Base
-const TIPN_TOKEN_ADDRESS = '0x5ba8d32579a4497c12d327289a103c3ad5b64eb1'
+// TIPN staking contract address on Base (where staked tokens are held)
+const TIPN_STAKING_ADDRESS = '0x715e56a9a4678c21f23513de9d637968d495074a'
 
 interface AnkrTokenHolder {
   holderAddress: string
@@ -33,19 +35,22 @@ export async function fetchTopTipnHolders(limit: number = 1000): Promise<Staker[
     throw new Error('VITE_ANKR_API_KEY environment variable is required')
   }
 
+  // Construct the full URL with API key (secure)
+  const ankrApiUrl = `${ANKR_BASE_URL}/${ANKR_API_KEY}`
+  
   try {
-    const response = await fetch(ANKR_API_URL, {
+    const response = await fetch(ankrApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ANKR_API_KEY}`,
+        // No Authorization header needed - token is in URL
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'ankr_getTokenHolders',
         params: {
           blockchain: 'base',
-          contractAddress: TIPN_TOKEN_ADDRESS,
+          contractAddress: TIPN_STAKING_ADDRESS,
           pageSize: Math.min(limit, 10000), // Ankr max is 10,000
         },
         id: 1,
@@ -97,18 +102,19 @@ export async function testAnkrConnection(): Promise<boolean> {
       return false
     }
 
-    const response = await fetch(ANKR_API_URL, {
+    const ankrApiUrl = `${ANKR_BASE_URL}/${ANKR_API_KEY}`
+    
+    const response = await fetch(ankrApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ANKR_API_KEY}`,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'ankr_getTokenHoldersCount',
         params: {
           blockchain: 'base',
-          contractAddress: TIPN_TOKEN_ADDRESS,
+          contractAddress: TIPN_STAKING_ADDRESS,
         },
         id: 1,
       }),
