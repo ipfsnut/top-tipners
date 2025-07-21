@@ -94,6 +94,29 @@ async function enrichWithIdentity(address: string): Promise<Partial<StakerWithId
   }
 }
 
+// Helper function to create a complete StakerWithIdentity from partial data
+function createStakerWithIdentity(
+  baseStaker: { address: string; amount: bigint; rank: number },
+  identityData?: Partial<StakerWithIdentity>
+): StakerWithIdentity {
+  const fallbackDisplayName = `${baseStaker.address.slice(0, 6)}...${baseStaker.address.slice(-4)}`
+  
+  return {
+    ...baseStaker,
+    displayName: identityData?.displayName || fallbackDisplayName,
+    hasVerifiedIdentity: identityData?.hasVerifiedIdentity || false,
+    identityType: identityData?.identityType || 'address',
+    farcasterUsername: identityData?.farcasterUsername,
+    farcasterDisplayName: identityData?.farcasterDisplayName,
+    farcasterPfpUrl: identityData?.farcasterPfpUrl,
+    farcasterBio: identityData?.farcasterBio,
+    farcasterFollowerCount: identityData?.farcasterFollowerCount,
+    ensName: identityData?.ensName,
+    basename: identityData?.basename,
+    profileUrl: identityData?.profileUrl,
+  }
+}
+
 // Save to unified table structure
 async function saveToSupabase(stakers: StakerWithIdentity[]): Promise<void> {
   try {
@@ -163,7 +186,7 @@ async function loadFromSupabase(): Promise<StakerWithIdentity[]> {
       amount: BigInt(row.amount),
       rank: row.rank,
       
-      // Identity data
+      // Identity data - ensure displayName is never undefined
       displayName: row.display_name || `${row.address.slice(0, 6)}...${row.address.slice(-4)}`,
       farcasterUsername: row.farcaster_username || undefined,
       farcasterDisplayName: row.farcaster_display_name || undefined,
@@ -210,13 +233,7 @@ async function fetchTopStakers(): Promise<StakerWithIdentity[]> {
       if (i < maxEnrichment) {
         // Enrich with identity data
         const identityData = await enrichWithIdentity(baseStaker.address)
-        enrichedStakers.push({
-          ...baseStaker,
-          displayName: identityData.displayName || `${baseStaker.address.slice(0, 6)}...${baseStaker.address.slice(-4)}`,
-          hasVerifiedIdentity: identityData.hasVerifiedIdentity || false,
-          identityType: identityData.identityType || 'address',
-          ...identityData
-        })
+        enrichedStakers.push(createStakerWithIdentity(baseStaker, identityData))
         
         // Rate limiting delay
         if (i < maxEnrichment - 1) {
@@ -224,12 +241,7 @@ async function fetchTopStakers(): Promise<StakerWithIdentity[]> {
         }
       } else {
         // Basic staker without enrichment
-        enrichedStakers.push({
-          ...baseStaker,
-          displayName: `${baseStaker.address.slice(0, 6)}...${baseStaker.address.slice(-4)}`,
-          hasVerifiedIdentity: false,
-          identityType: 'address'
-        })
+        enrichedStakers.push(createStakerWithIdentity(baseStaker))
       }
     }
     
@@ -283,20 +295,10 @@ export async function forceRefreshStakers(): Promise<StakerWithIdentity[]> {
     
     console.log(`🔄 Preserving ${identityMap.size} existing identities`)
     
-    // Merge fresh staking data with preserved identities
+    // Merge fresh staking data with preserved identities using the helper function
     const mergedStakers: StakerWithIdentity[] = freshStakers.map(staker => {
       const existingIdentity = identityMap.get(staker.address)
-      
-      if (existingIdentity) {
-        return { ...staker, ...existingIdentity }
-      } else {
-        return {
-          ...staker,
-          displayName: `${staker.address.slice(0, 6)}...${staker.address.slice(-4)}`,
-          hasVerifiedIdentity: false,
-          identityType: 'address' as const
-        }
-      }
+      return createStakerWithIdentity(staker, existingIdentity)
     })
     
     // Save merged data

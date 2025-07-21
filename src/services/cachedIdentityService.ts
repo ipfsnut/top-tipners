@@ -1,4 +1,4 @@
-// src/services/cachedIdentityService.ts
+// src/services/cachedIdentityService.ts - Updated for unified tipn_stakers table
 import { supabase } from '@/lib/supabase'
 import { getFarcasterUserByAddress } from '@/utils/farcaster'
 import { resolveName } from '@/utils/ens'
@@ -10,8 +10,8 @@ const RATE_LIMIT_CONFIG = {
   MAX_BATCH_SIZE: 5, // Small batches
   DELAY_BETWEEN_REQUESTS: 2000, // 2 seconds between requests
   CACHE_EXPIRY_HOURS: 24 * 7, // Cache for 1 week
-  // New: Supabase query batching limits
-  SUPABASE_BATCH_SIZE: 100, // Maximum addresses per Supabase query to avoid URL length issues
+  // Supabase query batching limits
+  SUPABASE_BATCH_SIZE: 100, // Maximum addresses per Supabase query
 }
 
 // Track API usage to respect rate limits
@@ -42,7 +42,6 @@ class RateLimiter {
     return Math.max(0, oneHourFromOldest - now)
   }
   
-  // Public getter for request count (used in getRateLimitStatus)
   getRequestCount(): number {
     const now = Date.now()
     const oneHourAgo = now - (60 * 60 * 1000)
@@ -55,22 +54,23 @@ class RateLimiter {
 
 const rateLimiter = new RateLimiter()
 
-// Database types for cached identity
+// Updated interface to match the unified tipn_stakers table
 export interface CachedIdentity {
   address: string
   fid: number | null
-  username: string | null
-  display_name: string | null
-  pfp_url: string | null
-  bio: string | null
-  follower_count: number
-  following_count: number
-  verified_addresses: string[]
-  has_farcaster: boolean
+  farcaster_username: string | null
+  farcaster_display_name: string | null
+  farcaster_pfp_url: string | null
+  farcaster_bio: string | null
+  farcaster_follower_count: number
+  farcaster_following_count: number
   ens_name: string | null
   basename: string | null
-  last_updated: string
-  created_at: string
+  has_verified_identity: boolean
+  identity_type: string
+  display_name: string | null
+  profile_url: string | null
+  identity_last_updated: string
 }
 
 // Convert to display format
@@ -103,10 +103,10 @@ function isCacheExpired(lastUpdated: string): boolean {
   return (now - cacheTime) > expiryTime
 }
 
-// Load cached identities from Supabase with proper batching
+// Load cached identities from the unified tipn_stakers table
 export async function loadCachedIdentities(addresses: string[]): Promise<Map<string, CachedIdentity>> {
   try {
-    console.log(`📦 Loading ${addresses.length} cached identities from Supabase...`)
+    console.log(`📦 Loading ${addresses.length} cached identities from unified tipn_stakers table...`)
     
     const cached = new Map<string, CachedIdentity>()
     
@@ -118,8 +118,24 @@ export async function loadCachedIdentities(addresses: string[]): Promise<Map<str
       console.log(`📦 Loading batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(addresses.length / batchSize)} (${batch.length} addresses)`)
       
       const { data, error } = await supabase
-        .from('farcaster_identities')
-        .select('*')
+        .from('tipn_stakers')
+        .select(`
+          address,
+          fid,
+          farcaster_username,
+          farcaster_display_name,
+          farcaster_pfp_url,
+          farcaster_bio,
+          farcaster_follower_count,
+          farcaster_following_count,
+          ens_name,
+          basename,
+          has_verified_identity,
+          identity_type,
+          display_name,
+          profile_url,
+          identity_last_updated
+        `)
         .in('address', batch)
 
       if (error) {
@@ -148,15 +164,30 @@ export async function loadCachedIdentities(addresses: string[]): Promise<Map<str
   }
 }
 
-// Save identity to cache
+// Save identity to the unified tipn_stakers table
 async function saveCachedIdentity(identity: Partial<CachedIdentity>): Promise<void> {
   try {
+    const updateData = {
+      fid: identity.fid,
+      farcaster_username: identity.farcaster_username,
+      farcaster_display_name: identity.farcaster_display_name,
+      farcaster_pfp_url: identity.farcaster_pfp_url,
+      farcaster_bio: identity.farcaster_bio,
+      farcaster_follower_count: identity.farcaster_follower_count || 0,
+      farcaster_following_count: identity.farcaster_following_count || 0,
+      ens_name: identity.ens_name,
+      basename: identity.basename,
+      has_verified_identity: identity.has_verified_identity || false,
+      identity_type: identity.identity_type || 'address',
+      display_name: identity.display_name,
+      profile_url: identity.profile_url,
+      identity_last_updated: new Date().toISOString()
+    }
+
     const { error } = await supabase
-      .from('farcaster_identities')
-      .upsert({
-        ...identity,
-        last_updated: new Date().toISOString()
-      })
+      .from('tipn_stakers')
+      .update(updateData)
+      .eq('address', identity.address)
 
     if (error) throw error
     
@@ -188,49 +219,76 @@ async function fetchFreshIdentity(address: string): Promise<CachedIdentity> {
       rateLimiter.recordRequest()
     }
 
-    // Create cached identity record
+    // Determine display name and type
+    let displayName: string
+    let identityType: 'farcaster' | 'ens' | 'basename' | 'address'
+    let profileUrl: string | null = null
+    let hasVerifiedIdentity: boolean
+
+    if (farcasterUser) {
+      displayName = farcasterUser.displayName || `@${farcasterUser.username}`
+      identityType = 'farcaster'
+      profileUrl = `https://warpcast.com/${farcasterUser.username}`
+      hasVerifiedIdentity = true
+    } else if (ensData.basename) {
+      displayName = ensData.basename
+      identityType = 'basename'
+      hasVerifiedIdentity = true
+    } else if (ensData.ens) {
+      displayName = ensData.ens
+      identityType = 'ens'
+      hasVerifiedIdentity = true
+    } else {
+      displayName = `${address.slice(0, 6)}...${address.slice(-4)}`
+      identityType = 'address'
+      hasVerifiedIdentity = false
+    }
+
+    // Create cached identity record for unified table
     const cachedIdentity: CachedIdentity = {
       address: address.toLowerCase(),
       fid: farcasterUser?.fid || null,
-      username: farcasterUser?.username || null,
-      display_name: farcasterUser?.displayName || null,
-      pfp_url: farcasterUser?.pfpUrl || null,
-      bio: farcasterUser?.bio || null,
-      follower_count: farcasterUser?.followerCount || 0,
-      following_count: farcasterUser?.followingCount || 0,
-      verified_addresses: farcasterUser?.verifiedAddresses || [],
-      has_farcaster: !!farcasterUser,
+      farcaster_username: farcasterUser?.username || null,
+      farcaster_display_name: farcasterUser?.displayName || null,
+      farcaster_pfp_url: farcasterUser?.pfpUrl || null,
+      farcaster_bio: farcasterUser?.bio || null,
+      farcaster_follower_count: farcasterUser?.followerCount || 0,
+      farcaster_following_count: farcasterUser?.followingCount || 0,
       ens_name: ensData.ens,
       basename: ensData.basename,
-      last_updated: new Date().toISOString(),
-      created_at: new Date().toISOString()
+      has_verified_identity: hasVerifiedIdentity,
+      identity_type: identityType,
+      display_name: displayName,
+      profile_url: profileUrl,
+      identity_last_updated: new Date().toISOString()
     }
 
-    // Save to cache
+    // Save to unified table
     await saveCachedIdentity(cachedIdentity)
     
-    console.log(`✅ Fresh identity cached for ${address}`)
+    console.log(`✅ Fresh identity cached for ${address}: ${displayName} (${identityType})`)
     return cachedIdentity
     
   } catch (error) {
     console.error(`Failed to fetch fresh identity for ${address}:`, error)
     
-    // Create fallback cache entry to avoid repeated failures
+    // Create fallback cache entry
     const fallbackIdentity: CachedIdentity = {
       address: address.toLowerCase(),
       fid: null,
-      username: null,
-      display_name: null,
-      pfp_url: null,
-      bio: null,
-      follower_count: 0,
-      following_count: 0,
-      verified_addresses: [],
-      has_farcaster: false,
+      farcaster_username: null,
+      farcaster_display_name: null,
+      farcaster_pfp_url: null,
+      farcaster_bio: null,
+      farcaster_follower_count: 0,
+      farcaster_following_count: 0,
       ens_name: null,
       basename: null,
-      last_updated: new Date().toISOString(),
-      created_at: new Date().toISOString()
+      has_verified_identity: false,
+      identity_type: 'address',
+      display_name: `${address.slice(0, 6)}...${address.slice(-4)}`,
+      profile_url: null,
+      identity_last_updated: new Date().toISOString()
     }
     
     await saveCachedIdentity(fallbackIdentity)
@@ -241,26 +299,25 @@ async function fetchFreshIdentity(address: string): Promise<CachedIdentity> {
 // Convert cached identity to display format
 function convertToDisplayIdentity(cached: CachedIdentity): DisplayIdentity {
   // Build Farcaster object if available
-  const farcaster = cached.has_farcaster ? {
+  const farcaster = cached.farcaster_username ? {
     fid: cached.fid!,
-    username: cached.username!,
-    displayName: cached.display_name || cached.username!,
-    pfpUrl: cached.pfp_url || '',
-    bio: cached.bio || '',
-    followerCount: cached.follower_count,
-    followingCount: cached.following_count
+    username: cached.farcaster_username,
+    displayName: cached.farcaster_display_name || cached.farcaster_username,
+    pfpUrl: cached.farcaster_pfp_url || '',
+    bio: cached.farcaster_bio || '',
+    followerCount: cached.farcaster_follower_count,
+    followingCount: cached.farcaster_following_count
   } : null
 
   // Determine display name and type (priority: Farcaster → Basename → ENS → Address)
   let displayName: string
   let displayAvatar: string | null = null
-  let profileUrl: string | null = null
+  let profileUrl: string | null = cached.profile_url
   let identityType: DisplayIdentity['identityType']
 
   if (farcaster) {
     displayName = farcaster.displayName
     displayAvatar = farcaster.pfpUrl
-    profileUrl = `https://warpcast.com/${farcaster.username}`
     identityType = 'farcaster'
   } else if (cached.basename) {
     displayName = cached.basename
@@ -269,7 +326,7 @@ function convertToDisplayIdentity(cached: CachedIdentity): DisplayIdentity {
     displayName = cached.ens_name
     identityType = 'ens'
   } else {
-    displayName = `${cached.address.slice(0, 6)}...${cached.address.slice(-4)}`
+    displayName = cached.display_name || `${cached.address.slice(0, 6)}...${cached.address.slice(-4)}`
     identityType = 'address'
   }
 
@@ -281,21 +338,21 @@ function convertToDisplayIdentity(cached: CachedIdentity): DisplayIdentity {
     displayName,
     displayAvatar,
     profileUrl,
-    hasVerifiedIdentity: !!(farcaster || cached.basename || cached.ens_name),
-    identityType
+    hasVerifiedIdentity: cached.has_verified_identity,
+    identityType: identityType as DisplayIdentity['identityType']
   }
 }
 
-// Main function: Get identity with smart caching
+// Main function: Get identity with smart caching (now uses unified table)
 export async function getIdentityWithCache(address: string): Promise<DisplayIdentity> {
   const normalizedAddress = address.toLowerCase()
   
   try {
-    // Try to load from cache first
+    // Try to load from unified table first
     const cached = await loadCachedIdentities([normalizedAddress])
     const cachedIdentity = cached.get(normalizedAddress)
     
-    if (cachedIdentity && !isCacheExpired(cachedIdentity.last_updated)) {
+    if (cachedIdentity && cachedIdentity.identity_last_updated && !isCacheExpired(cachedIdentity.identity_last_updated)) {
       console.log(`📦 Using cached identity for ${address}`)
       return convertToDisplayIdentity(cachedIdentity)
     }
@@ -346,7 +403,7 @@ export async function getIdentityWithCache(address: string): Promise<DisplayIden
   }
 }
 
-// Batch processing with smart rate limiting and proper Supabase batching
+// Batch processing with smart rate limiting
 export async function batchGetIdentitiesWithCache(addresses: string[]): Promise<Map<string, DisplayIdentity>> {
   const results = new Map<string, DisplayIdentity>()
   const normalizedAddresses = addresses.map(addr => addr.toLowerCase())
@@ -354,7 +411,7 @@ export async function batchGetIdentitiesWithCache(addresses: string[]): Promise<
   console.log(`🔄 Starting smart batch identity lookup for ${addresses.length} addresses`)
   
   try {
-    // Load all cached identities first (with proper batching)
+    // Load all cached identities first (from unified table)
     const cached = await loadCachedIdentities(normalizedAddresses)
     
     // Separate fresh vs expired/missing
@@ -364,7 +421,7 @@ export async function batchGetIdentitiesWithCache(addresses: string[]): Promise<
     normalizedAddresses.forEach(address => {
       const cachedIdentity = cached.get(address)
       
-      if (cachedIdentity && !isCacheExpired(cachedIdentity.last_updated)) {
+      if (cachedIdentity && cachedIdentity.identity_last_updated && !isCacheExpired(cachedIdentity.identity_last_updated)) {
         canUseCached.push(address)
       } else {
         needsFresh.push(address)
@@ -521,5 +578,59 @@ export function getRateLimitStatus(): {
     requestsRemaining,
     timeUntilReset,
     canMakeRequest: rateLimiter.canMakeRequest()
+  }
+}
+
+// NEW: Function to enrich existing stakers with identity data
+export async function enrichExistingStakers(limit: number = 10): Promise<number> {
+  console.log(`🔄 Starting to enrich ${limit} existing stakers with identity data...`)
+  
+  try {
+    // Get stakers that don't have identity data yet
+    const { data: stakersToEnrich, error } = await supabase
+      .from('tipn_stakers')
+      .select('address, rank')
+      .or('identity_last_updated.is.null,has_verified_identity.eq.false')
+      .order('rank', { ascending: true })
+      .limit(limit)
+
+    if (error) throw error
+    
+    if (!stakersToEnrich || stakersToEnrich.length === 0) {
+      console.log('✅ All stakers already have identity data')
+      return 0
+    }
+    
+    console.log(`🔍 Found ${stakersToEnrich.length} stakers to enrich`)
+    
+    let enriched = 0
+    for (const staker of stakersToEnrich) {
+      // Check rate limits
+      if (!rateLimiter.canMakeRequest()) {
+        console.log(`⏰ Rate limit reached. Enriched ${enriched} of ${stakersToEnrich.length} stakers.`)
+        break
+      }
+      
+      try {
+        console.log(`🔍 Enriching rank #${staker.rank}: ${staker.address}`)
+        await fetchFreshIdentity(staker.address)
+        enriched++
+        
+        // Delay between requests
+        if (enriched < stakersToEnrich.length) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_CONFIG.DELAY_BETWEEN_REQUESTS))
+        }
+        
+      } catch (error) {
+        console.warn(`Failed to enrich ${staker.address}:`, error)
+      }
+    }
+    
+    console.log(`✅ Enriched ${enriched} stakers with identity data`)
+    return enriched
+    
+  } catch (error) {
+    console.error('Failed to enrich existing stakers:', error)
+    return 0
   }
 }

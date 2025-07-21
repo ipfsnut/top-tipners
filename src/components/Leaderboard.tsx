@@ -129,6 +129,9 @@ const Leaderboard: React.FC = () => {
         </div>
         <div>
           <span className="text-tipn-primary font-semibold">{verifiedCount}</span> of {stakers.length} stakers have verified identities
+          <span className="text-gray-500 ml-1">
+            (auto-enriching every 2 hours)
+          </span>
         </div>
       </div>
 

@@ -64,6 +64,10 @@
 [forms]
   settings = true
 
-# Functions directory (if adding Netlify Functions later)
+# Functions directory
 [functions]
   directory = "netlify/functions"
+
+# Scheduled function for identity enrichment
+[functions."enrich-identities"]
+  schedule = "0 */2 * * *"  # Run every 2 hours

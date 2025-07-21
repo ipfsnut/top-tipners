@@ -1,0 +1,20 @@
+{
+  "name": "tipn-netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for TIPN leaderboard",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
