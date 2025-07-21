@@ -20,7 +20,7 @@ const Leaderboard: React.FC = () => {
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   
   const queryClient = useQueryClient()
-  const { data: stakers, isLoading, isError, error, refetch } = useTopStakers()
+  const { data: stakers, isLoading, isError, refetch } = useTopStakers()
 
   const filteredStakers = useMemo(() => {
     if (!stakers) return []
