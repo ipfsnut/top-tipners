@@ -25,3 +25,29 @@ export interface StatsGridProps {
   totalStaked: bigint
   network: string
 }
+
+// Farcaster types
+export interface FarcasterUser {
+  fid: number
+  username: string
+  displayName: string
+  pfpUrl: string
+  bio?: string
+  followerCount?: number
+  followingCount?: number
+  verifiedAddresses?: string[]
+}
+
+export interface UserIdentity {
+  address: string
+  farcaster: FarcasterUser | null
+  ens: string | null
+  basename: string | null
+  
+  // Computed display properties
+  displayName: string
+  displayAvatar: string | null
+  profileUrl: string | null
+  hasVerifiedIdentity: boolean
+  identityType: 'farcaster' | 'ens' | 'basename' | 'address'
+}
