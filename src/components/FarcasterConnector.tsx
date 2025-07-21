@@ -4,7 +4,7 @@ import { User, Wallet, ExternalLink, Crown } from 'lucide-react'
 import { FarcasterContext } from '../App'
 
 const FarcasterConnector: React.FC = () => {
-  const { isSDKReady, user, isConnected, connect, disconnect, isFrameContext } = useContext(FarcasterContext)
+  const { isSDKReady, user, isConnected, connect, } = useContext(FarcasterContext)
   const [userPosition, setUserPosition] = useState<{ rank: number; amount: string } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
 
