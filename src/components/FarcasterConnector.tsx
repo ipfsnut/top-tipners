@@ -1,10 +1,10 @@
 // src/components/FarcasterConnector.tsx
 import React, { useContext, useState, useEffect } from 'react'
-import { User, Wallet, ExternalLink, Crown } from 'lucide-react'
+import { User, Crown } from 'lucide-react'
 import { FarcasterContext } from '../App'
 
 const FarcasterConnector: React.FC = () => {
-  const { isSDKReady, user, isConnected, connect, } = useContext(FarcasterContext)
+  const { isSDKReady, user, isConnected } = useContext(FarcasterContext)
   const [userPosition, setUserPosition] = useState<{ rank: number; amount: string } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
 
@@ -95,45 +95,23 @@ const FarcasterConnector: React.FC = () => {
     )
   }
 
-  // Show wallet connection for web users
+  // Optional: Show minimal notice for web users (don't require connection)
   if (!user) {
     return (
-      <div className="bg-blue-900/20 border-b border-blue-500/30">
-        <div className="container mx-auto px-4 py-4 max-w-7xl">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-base font-medium text-blue-200">
-                  Connect to find your rank
-                </p>
-                <p className="text-sm text-blue-300">
-                  See where you stand in the TIPN staking leaderboard
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={connect}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-              >
-                <Wallet className="w-4 h-4" />
-                Connect Wallet
-              </button>
-              
-              <a
-                href="https://warpcast.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Open in Warpcast
-              </a>
-            </div>
+      <div className="bg-slate-800/30 border-b border-slate-700/30">
+        <div className="container mx-auto px-4 py-2 max-w-7xl">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-center">
+            <p className="text-sm text-slate-400">
+              💡 For wallet connection & personalized rank, open in 
+            </p>
+            <a
+              href="https://warpcast.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-purple-400 hover:text-purple-300 underline"
+            >
+              Warpcast
+            </a>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useTopStakers, forceRefreshStakers } from '@/hooks/useTopStakers'
+import { useTopStakers, forceRefreshStakers, backgroundEnrichStakers } from '@/hooks/useTopStakers'
 import SearchBar from './SearchBar'
 import StatsGrid from './StatsGrid'
 import LeaderboardRow from './LeaderboardRow'
@@ -65,6 +65,7 @@ const Leaderboard: React.FC = () => {
     }
   }
 
+
   const totalStaked = useMemo(() => {
     if (!stakers) return 0n
     return stakers.reduce((sum, staker) => sum + staker.amount, 0n)
@@ -75,6 +76,28 @@ const Leaderboard: React.FC = () => {
     if (!stakers) return 0
     return stakers.filter(staker => staker.hasVerifiedIdentity).length
   }, [stakers])
+
+  // Background enrichment effect - runs after initial load
+  useEffect(() => {
+    if (stakers && stakers.length > 0) {
+      // Start background enrichment 3 seconds after load
+      const timer = setTimeout(async () => {
+        try {
+          console.log('🚀 Starting background enrichment...')
+          await backgroundEnrichStakers(20) // Enrich 20 stakers at a time
+          
+          // Refresh the query to show new identities
+          setTimeout(() => {
+            refetch()
+          }, 1000)
+        } catch (error) {
+          console.warn('Background enrichment failed:', error)
+        }
+      }, 3000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [stakers, refetch])
 
   if (isLoading) {
     return <LoadingSpinner />

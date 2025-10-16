@@ -208,48 +208,33 @@ async function loadFromSupabase(): Promise<StakerWithIdentity[]> {
   }
 }
 
-// Main fetch function
+// Main fetch function - simplified to avoid loading issues
 async function fetchTopStakers(): Promise<StakerWithIdentity[]> {
   try {
+    console.log('🔄 Fetching top stakers...')
+    
     // Try cache first for instant loading
     const cachedStakers = await loadFromSupabase()
     
     if (cachedStakers.length > 0) {
-      console.log('🎯 Using cached enriched stakers')
+      console.log(`🎯 Using cached data: ${cachedStakers.length} stakers`)
       return cachedStakers
     }
     
-    // No cache - fetch fresh and enrich top addresses
-    console.log('🔄 Fetching fresh staking data and enriching with identities...')
+    // No cache - fetch fresh and create basic stakers (no enrichment to avoid blocking)
+    console.log('📦 No cache found, fetching fresh staking data...')
     const freshStakers = await fetchTopTipnHolders(1000)
     
-    // Enrich top 50 with identity data to avoid hitting rate limits
-    const enrichedStakers: StakerWithIdentity[] = []
-    const maxEnrichment = 50
+    // Create basic stakers without enrichment for fast loading
+    const basicStakers: StakerWithIdentity[] = freshStakers.map(staker => 
+      createStakerWithIdentity(staker)
+    )
     
-    for (let i = 0; i < freshStakers.length; i++) {
-      const baseStaker = freshStakers[i]
-      
-      if (i < maxEnrichment) {
-        // Enrich with identity data
-        const identityData = await enrichWithIdentity(baseStaker.address)
-        enrichedStakers.push(createStakerWithIdentity(baseStaker, identityData))
-        
-        // Rate limiting delay
-        if (i < maxEnrichment - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-      } else {
-        // Basic staker without enrichment
-        enrichedStakers.push(createStakerWithIdentity(baseStaker))
-      }
-    }
+    // Save basic data immediately
+    await saveToSupabase(basicStakers)
     
-    // Save enriched data
-    await saveToSupabase(enrichedStakers)
-    
-    console.log(`✅ Enriched and cached ${enrichedStakers.length} stakers (${maxEnrichment} with identity data)`)
-    return enrichedStakers
+    console.log(`✅ Loaded ${basicStakers.length} stakers (basic data saved)`)
+    return basicStakers
     
   } catch (error) {
     console.error('Failed to fetch top stakers:', error)
@@ -331,4 +316,66 @@ export function useTopStakers() {
 
 export function useCanRefresh() {
   return canRefresh()
+}
+
+// Background enrichment function - can be called separately
+export async function backgroundEnrichStakers(limit: number = 20): Promise<number> {
+  try {
+    console.log(`🔍 Starting background enrichment for ${limit} stakers...`)
+    
+    // Load current cached data
+    const cachedStakers = await loadFromSupabase()
+    if (cachedStakers.length === 0) {
+      console.log('No cached data found for enrichment')
+      return 0
+    }
+    
+    // Find stakers without verified identities (top ranked first)
+    const unenrichedStakers = cachedStakers
+      .filter(staker => !staker.hasVerifiedIdentity)
+      .sort((a, b) => a.rank - b.rank) // Sort by rank
+      .slice(0, limit) // Take only the specified limit
+    
+    if (unenrichedStakers.length === 0) {
+      console.log('✅ All top stakers already have verified identities')
+      return 0
+    }
+    
+    console.log(`🎯 Enriching ${unenrichedStakers.length} stakers...`)
+    let enriched = 0
+    
+    for (const staker of unenrichedStakers) {
+      try {
+        const identityData = await enrichWithIdentity(staker.address)
+        const updatedStaker = createStakerWithIdentity(
+          { address: staker.address, amount: staker.amount, rank: staker.rank },
+          identityData
+        )
+        
+        // Update in the cached array
+        const index = cachedStakers.findIndex(s => s.address === staker.address)
+        if (index !== -1) {
+          cachedStakers[index] = updatedStaker
+          enriched++
+        }
+        
+        // Rate limiting delay
+        await new Promise(resolve => setTimeout(resolve, 800))
+        
+      } catch (error) {
+        console.warn(`Failed to enrich ${staker.address}:`, error)
+      }
+    }
+    
+    if (enriched > 0) {
+      // Save updated data back to Supabase
+      await saveToSupabase(cachedStakers)
+      console.log(`✅ Background enriched ${enriched} stakers`)
+    }
+    
+    return enriched
+  } catch (error) {
+    console.error('Background enrichment failed:', error)
+    return 0
+  }
 }

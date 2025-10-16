@@ -3,12 +3,12 @@ import { supabase } from '@/lib/supabase'
 import { getFarcasterUserByAddress } from '@/utils/farcaster'
 import { resolveName } from '@/utils/ens'
 
-// Rate limiting configuration for Neynar free plan
+// Rate limiting configuration for Neynar paid plan
 const RATE_LIMIT_CONFIG = {
-  // Neynar free plan: ~100 requests per day
-  MAX_REQUESTS_PER_HOUR: 10, // Very conservative
-  MAX_BATCH_SIZE: 5, // Small batches
-  DELAY_BETWEEN_REQUESTS: 2000, // 2 seconds between requests
+  // Neynar paid plan: Much higher limits
+  MAX_REQUESTS_PER_HOUR: 100, // Increased from 10
+  MAX_BATCH_SIZE: 20, // Increased from 5
+  DELAY_BETWEEN_REQUESTS: 500, // Reduced from 2000ms to 500ms
   CACHE_EXPIRY_HOURS: 24 * 7, // Cache for 1 week
   // Supabase query batching limits
   SUPABASE_BATCH_SIZE: 100, // Maximum addresses per Supabase query
